@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/api";
 import { useWebSocket, ConnectionState } from "../hooks/useWebSocket";
+import { OperationsPanel } from "../components/OperationsPanel";
 import { Agent, Company, SimEvent, Employee, JobOpening, Candidate, WorkforceSummary, FinancialMetrics, ValuationData, Investor, FundingRound, PipelineEntry, BudgetRequest } from "../types/types";
 
 interface DashboardData {
@@ -37,6 +38,7 @@ export function CommandCenter({ companyId }: { companyId: number }) {
   const [pipeline, setPipeline] = useState<PipelineEntry[]>([]);
   const [budgetRequests, setBudgetRequests] = useState<BudgetRequest[]>([]);
   const [showFinance, setShowFinance] = useState(false);
+  const [showOperations, setShowOperations] = useState(false);
 
   const { connectionState, messages, clearMessages } = useWebSocket(companyId);
 
@@ -185,6 +187,12 @@ export function CommandCenter({ companyId }: { companyId: number }) {
         </div>
         <div className="flex items-center gap-4">
           {connectionIndicator}
+          <button
+            onClick={() => setShowOperations(!showOperations)}
+            className="rounded bg-orange-900 px-3 py-1.5 text-xs font-semibold hover:bg-orange-700"
+          >
+            {showOperations ? "Hide Operations" : "Operations"}
+          </button>
           <button
             onClick={() => setShowFinance(!showFinance)}
             className="rounded bg-indigo-900 px-3 py-1.5 text-xs font-semibold hover:bg-indigo-700"
@@ -357,6 +365,11 @@ export function CommandCenter({ companyId }: { companyId: number }) {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+          {showOperations && (
+            <div className="mt-6">
+              <OperationsPanel companyId={companyId} />
             </div>
           )}
         </aside>

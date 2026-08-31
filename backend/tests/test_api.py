@@ -30,6 +30,35 @@ def test_end_to_end_flow(client):
     assert state["event_count"] == len(events)
 
 
+def test_list_companies(client):
+    # Create two companies.
+    c1 = client.post("/api/companies", json={"name": "ListCo1", "mission": "m1"}).json()
+    c2 = client.post("/api/companies", json={"name": "ListCo2", "mission": "m2"}).json()
+
+    # List endpoint returns both.
+    resp = client.get("/api/companies")
+    assert resp.status_code == 200
+    companies = resp.json()
+    names = {c["name"] for c in companies}
+    assert "ListCo1" in names
+    assert "ListCo2" in names
+
+    # Each company has expected fields.
+    for c in companies:
+        assert "id" in c
+        assert "name" in c
+        assert "status" in c
+        assert "cash" in c
+
+
+def test_list_companies_empty(client):
+    # No companies created in this test - but other tests may have created some.
+    # Just verify the endpoint works.
+    resp = client.get("/api/companies")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
 def test_agents_endpoint_404(client):
     assert client.get("/api/companies/12345/agents").status_code == 404
 

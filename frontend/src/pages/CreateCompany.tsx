@@ -3,8 +3,10 @@ import { api } from "../api/api";
 
 export function CreateCompany({
   onCreated,
+  onCancel,
 }: {
   onCreated: (id: number) => void;
+  onCancel?: () => void;
 }) {
   const [name, setName] = useState("");
   const [mission, setMission] = useState("");
@@ -49,13 +51,24 @@ export function CreateCompany({
           />
         </div>
         {error && <p className="text-sm text-rose-400">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {submitting ? "Creating..." : "Create Company"}
-        </button>
+        <div className="flex gap-3">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 rounded bg-slate-700 px-4 py-2 font-semibold text-slate-200 hover:bg-slate-600"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex-1 rounded bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {submitting ? "Creating..." : "Create Company"}
+          </button>
+        </div>
       </form>
     </div>
   );

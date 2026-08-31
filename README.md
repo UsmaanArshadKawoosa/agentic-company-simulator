@@ -194,8 +194,8 @@ Each tick represents one simulated day. The engine processes systems in a fixed 
 
 | Module | Purpose |
 |--------|---------|
-| `src/pages/` | CommandCenter (dashboard), CreateCompany, Simulation pages |
-| `src/components/` | AgentCard, CompanyDashboard, Metrics, OrgChart, ActivityFeed |
+| `src/pages/` | CompanyList (browse), CreateCompany, Simulation, CommandCenter (dashboard) |
+| `src/components/` | AgentCard, CompanyDashboard, Metrics, OrgChart, ActivityFeed, OperationsPanel |
 | `src/hooks/` | useSimulation (API polling), useWebSocket (real-time updates) |
 | `src/api/` | Typed API client for all backend endpoints |
 | `src/types/` | TypeScript type definitions matching backend schemas |
@@ -325,6 +325,7 @@ The test suite runs against SQLite by default — no PostgreSQL required. It cov
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/companies` | Create a company (+ seed 4 agents) |
+| GET | `/api/companies` | List all companies |
 | GET | `/api/companies/{company_id}` | Get company details |
 | GET | `/api/companies/{company_id}/agents` | List company agents |
 | GET | `/api/companies/{company_id}/events` | List company events |
@@ -469,6 +470,22 @@ ws.onopen = () => {
 - **Phase 9**: Workforce management, hiring, performance, candidates
 - **Phase 10**: Financial intelligence, fundraising, investors, cap table, valuation
 - **Phase 11**: Objectives, resources, risks, incidents, priority, attention
+
+## User Interface
+
+The frontend provides a complete command center for managing simulations:
+
+- **Company List**: Browse and select existing companies, view status at a glance
+- **Create Company**: Form to create new companies with name and mission
+- **Command Center**: Real-time dashboard with:
+  - Company status, day counter, cash/revenue metrics
+  - Agent hierarchy visualization
+  - Live activity feed with event filtering
+  - Financial metrics, valuation, funding rounds
+  - Workforce summary with employees, candidates, open positions
+  - Operations panel for objectives, risks, and incidents
+  - Simulation controls (start/pause/tick/resume, speed selection)
+  - WebSocket connection indicator with auto-reconnect
 
 ## Limitations
 

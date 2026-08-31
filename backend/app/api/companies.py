@@ -116,6 +116,16 @@ def get_company(company_id: int, db: Session = Depends(get_db)) -> Company:
     return company
 
 
+@router.get("", response_model=list[CompanyRead])
+def list_companies(db: Session = Depends(get_db), limit: int = 100) -> list[Company]:
+    companies = list(
+        db.execute(select(Company).order_by(Company.updated_at.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
+    return companies
+
+
 @router.get("/{company_id}/agents", response_model=list[AgentRead])
 def list_agents(company_id: int, db: Session = Depends(get_db), limit: int = 100) -> list[Agent]:
     if db.get(Company, company_id) is None:
