@@ -319,12 +319,13 @@ def get_strategy(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/campaigns")
-def get_campaigns(company_id: int, db: Session = Depends(get_db)):
+def get_campaigns(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     """Get company campaigns."""
     from app.models.campaign import Campaign
     _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     campaigns = list(
-        db.execute(select(Campaign).where(Campaign.company_id == company_id).order_by(Campaign.id))
+        db.execute(select(Campaign).where(Campaign.company_id == company_id).order_by(Campaign.id).limit(limit))
         .scalars()
         .all()
     )
@@ -344,13 +345,14 @@ def get_campaigns(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/sales")
-def get_sales(company_id: int, db: Session = Depends(get_db)):
+def get_sales(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     """Get company sales pipeline."""
     from app.models.sales_opportunity import SalesOpportunity
     _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     opportunities = list(
         db.execute(
-            select(SalesOpportunity).where(SalesOpportunity.company_id == company_id).order_by(SalesOpportunity.id)
+            select(SalesOpportunity).where(SalesOpportunity.company_id == company_id).order_by(SalesOpportunity.id).limit(limit)
         )
         .scalars()
         .all()
@@ -373,7 +375,7 @@ def get_sales(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/dashboard")
-def get_dashboard(company_id: int, db: Session = Depends(get_db)):
+def get_dashboard(company_id: int, db: Session = Depends(get_db), limit: int = 10000):
     """Get comprehensive dashboard data for the command center."""
     from app.models.agent import Agent
     from app.models.company import Company
@@ -389,17 +391,18 @@ def get_dashboard(company_id: int, db: Session = Depends(get_db)):
     from app.models.competitor import Competitor
 
     company = _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 10000))
 
-    agents = list(db.execute(select(Agent).where(Agent.company_id == company_id)).scalars().all())
-    customers = list(db.execute(select(Customer).where(Customer.company_id == company_id)).scalars().all())
-    tasks = list(db.execute(select(Task).where(Task.company_id == company_id)).scalars().all())
-    projects = list(db.execute(select(Project).where(Project.company_id == company_id)).scalars().all())
-    milestones = list(db.execute(select(Milestone).where(Milestone.company_id == company_id)).scalars().all())
-    features = list(db.execute(select(ProductFeature).where(ProductFeature.company_id == company_id)).scalars().all())
-    campaigns = list(db.execute(select(Campaign).where(Campaign.company_id == company_id)).scalars().all())
-    opportunities = list(db.execute(select(SalesOpportunity).where(SalesOpportunity.company_id == company_id)).scalars().all())
-    segments = list(db.execute(select(MarketSegment)).scalars().all())
-    competitors = list(db.execute(select(Competitor)).scalars().all())
+    agents = list(db.execute(select(Agent).where(Agent.company_id == company_id).limit(limit)).scalars().all())
+    customers = list(db.execute(select(Customer).where(Customer.company_id == company_id).limit(limit)).scalars().all())
+    tasks = list(db.execute(select(Task).where(Task.company_id == company_id).limit(limit)).scalars().all())
+    projects = list(db.execute(select(Project).where(Project.company_id == company_id).limit(limit)).scalars().all())
+    milestones = list(db.execute(select(Milestone).where(Milestone.company_id == company_id).limit(limit)).scalars().all())
+    features = list(db.execute(select(ProductFeature).where(ProductFeature.company_id == company_id).limit(limit)).scalars().all())
+    campaigns = list(db.execute(select(Campaign).where(Campaign.company_id == company_id).limit(limit)).scalars().all())
+    opportunities = list(db.execute(select(SalesOpportunity).where(SalesOpportunity.company_id == company_id).limit(limit)).scalars().all())
+    segments = list(db.execute(select(MarketSegment).limit(limit)).scalars().all())
+    competitors = list(db.execute(select(Competitor).limit(limit)).scalars().all())
 
     active_customers = [c for c in customers if c.status.value == "ACTIVE"]
     churned_customers = [c for c in customers if c.status.value == "CHURNED"]
@@ -618,12 +621,13 @@ def get_valuation(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/investors")
-def get_investors(company_id: int, db: Session = Depends(get_db)):
+def get_investors(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     """Get all investors for the company."""
     from app.models.investor import Investor
     _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     investors = list(
-        db.execute(select(Investor).where(Investor.company_id == company_id).order_by(Investor.id))
+        db.execute(select(Investor).where(Investor.company_id == company_id).order_by(Investor.id).limit(limit))
         .scalars()
         .all()
     )
@@ -645,12 +649,13 @@ def get_investors(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/funding-rounds")
-def get_funding_rounds(company_id: int, db: Session = Depends(get_db)):
+def get_funding_rounds(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     """Get all funding rounds."""
     from app.models.funding_round import FundingRound
     _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     rounds = list(
-        db.execute(select(FundingRound).where(FundingRound.company_id == company_id).order_by(FundingRound.id))
+        db.execute(select(FundingRound).where(FundingRound.company_id == company_id).order_by(FundingRound.id).limit(limit))
         .scalars()
         .all()
     )
@@ -673,12 +678,13 @@ def get_funding_rounds(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/pipeline")
-def get_pipeline(company_id: int, db: Session = Depends(get_db)):
+def get_pipeline(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     """Get fundraising pipeline."""
     from app.models.fundraising_pipeline import FundraisingPipeline
     _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     pipelines = list(
-        db.execute(select(FundraisingPipeline).where(FundraisingPipeline.company_id == company_id).order_by(FundraisingPipeline.id))
+        db.execute(select(FundraisingPipeline).where(FundraisingPipeline.company_id == company_id).order_by(FundraisingPipeline.id).limit(limit))
         .scalars()
         .all()
     )
@@ -698,12 +704,13 @@ def get_pipeline(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{company_id}/cap-table")
-def get_cap_table(company_id: int, db: Session = Depends(get_db)):
+def get_cap_table(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     """Get cap table."""
     from app.models.cap_table import CapTableEntry
     _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     entries = list(
-        db.execute(select(CapTableEntry).where(CapTableEntry.company_id == company_id).order_by(CapTableEntry.id))
+        db.execute(select(CapTableEntry).where(CapTableEntry.company_id == company_id).order_by(CapTableEntry.id).limit(limit))
         .scalars()
         .all()
     )
@@ -721,13 +728,65 @@ def get_cap_table(company_id: int, db: Session = Depends(get_db)):
     ]
 
 
+@router.get("/{company_id}/history")
+def get_history(
+    company_id: int,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    """Get historical financial time-series data for analytics.
+
+    Aggregates FINANCIAL_SUMMARY events into a day-keyed series.
+    """
+    from app.models.event import Event
+    from app.enums import EventType
+
+    _get_company_or_404(db, company_id)
+
+    events = list(
+        db.execute(
+            select(Event)
+            .where(Event.company_id == company_id)
+            .where(Event.event_type == EventType.FINANCIAL_SUMMARY)
+            .order_by(Event.simulation_day.asc())
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+
+    series = []
+    for e in events:
+        meta = e.meta or {}
+        financial = meta.get("financial", {})
+        metrics = meta.get("financial_metrics", {})
+        series.append({
+            "day": e.simulation_day,
+            "cash": financial.get("cash", 0),
+            "revenue": financial.get("revenue", 0),
+            "expenses": financial.get("expenses", 0),
+            "profit": financial.get("profit", 0),
+            "active_customers": financial.get("active_customers", 0),
+            "daily_burn": metrics.get("daily_burn", 0),
+            "runway_days": metrics.get("runway_days"),
+            "financial_health_score": metrics.get("financial_health_score", 0),
+        })
+
+    return {
+        "company_id": company_id,
+        "data_points": len(series),
+        "series": series,
+    }
+
+
 @router.get("/{company_id}/budget-requests")
-def get_budget_requests(company_id: int, db: Session = Depends(get_db)):
+def get_budget_requests(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     """Get budget requests."""
     from app.models.budget_request import BudgetRequest
     _get_company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     requests = list(
-        db.execute(select(BudgetRequest).where(BudgetRequest.company_id == company_id).order_by(BudgetRequest.id))
+        db.execute(select(BudgetRequest).where(BudgetRequest.company_id == company_id).order_by(BudgetRequest.id).limit(limit))
         .scalars()
         .all()
     )
@@ -746,3 +805,61 @@ def get_budget_requests(company_id: int, db: Session = Depends(get_db)):
         }
         for r in requests
     ]
+
+
+@router.get("/{company_id}/decisions")
+def get_decisions(
+    company_id: int,
+    limit: int = 50,
+    agent_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """Get agent decisions with evaluation status."""
+    from app.models.decision import Decision
+    from app.models.expectation import Expectation
+    from app.enums import ExpectationStatus
+    from app.simulation.decision_quality import evaluate_decision
+    from app.simulation.domain import SimulationContext, make_rng
+
+    company = _get_company_or_404(db, company_id)
+
+    query = select(Decision).where(Decision.company_id == company_id)
+    if agent_id is not None:
+        query = query.where(Decision.agent_id == agent_id)
+    query = query.order_by(Decision.simulation_day.desc(), Decision.id.desc()).limit(limit)
+    decisions = list(db.execute(query).scalars().all())
+
+    # Build context for evaluation
+    ctx = SimulationContext(db=db, company=company, day=company.current_day, rng=make_rng(company.seed, company.current_day))
+
+    result = []
+    for d in decisions:
+        # Find linked expectation
+        linked_exp = None
+        if d.id:
+            linked_exp = db.execute(
+                select(Expectation).where(Expectation.linked_decision_id == d.id)
+            ).scalar_one_or_none()
+
+        evaluation = evaluate_decision(ctx, d)
+
+        result.append({
+            "id": d.id,
+            "agent_id": d.agent_id,
+            "action": d.action,
+            "reasoning": d.reasoning,
+            "outcome": d.outcome,
+            "simulation_day": d.simulation_day,
+            "evaluation": evaluation.value,
+            "confidence": d.context.get("confidence") if d.context else None,
+            "expected_outcome": linked_exp.description if linked_exp else None,
+            "expected_value": linked_exp.expected_value if linked_exp else None,
+            "actual_value": linked_exp.actual_value if linked_exp else None,
+            "expectation_status": linked_exp.status.value if linked_exp else None,
+        })
+
+    return {
+        "company_id": company_id,
+        "count": len(result),
+        "decisions": result,
+    }

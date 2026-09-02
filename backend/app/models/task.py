@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Float, ForeignKey, String, Text
+from sqlalchemy import Float, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -48,6 +48,10 @@ class Task(Base, TimestampMixin):
     remaining_effort: Mapped[float] = mapped_column(Float, default=10.0, nullable=False)
     deadline: Mapped[datetime | None] = mapped_column(nullable=True)
     result: Mapped[str | None] = mapped_column(Text, default=None)
+
+    __table_args__ = (
+        Index("ix_tasks_company_status", "company_id", "status"),
+    )
 
     company: Mapped["Company"] = relationship(  # noqa: F821
         "Company", back_populates="tasks"

@@ -222,3 +222,243 @@ export interface BudgetRequest {
   decided_day: number | null;
   decision_notes: string | null;
 }
+
+// --- Phase 11 Operations types ---
+
+export interface Objective {
+  id: number;
+  company_id: number;
+  parent_id: number | null;
+  title: string;
+  description: string | null;
+  objective_type: string;
+  status: string;
+  priority: number;
+  progress: number;
+  expected_outcome: string | null;
+  owner_id: number | null;
+  created_day: number;
+  completed_day: number | null;
+}
+
+export interface Risk {
+  id: number;
+  company_id: number;
+  risk_type: string;
+  severity: string;
+  source: string | null;
+  description: string | null;
+  affected_entity_type: string | null;
+  affected_entity_id: number | null;
+  status: string;
+  mitigation_actions: string | null;
+  detected_day: number;
+  resolved_day: number | null;
+}
+
+export interface Incident {
+  id: number;
+  company_id: number;
+  incident_type: string;
+  severity: string;
+  description: string | null;
+  status: string;
+  detected_day: number;
+  resolved_day: number | null;
+  root_cause: string | null;
+  impact_assessment: string | null;
+  related_risk_id: number | null;
+}
+
+export interface ResourceAllocation {
+  id: number;
+  company_id: number;
+  resource_type: string;
+  allocated_amount: number;
+  available_amount: number;
+  allocation_day: number;
+  purpose: string | null;
+  owner_id: number | null;
+}
+
+// --- Analytics types ---
+
+export interface HistoryDataPoint {
+  day: number;
+  cash: number;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  active_customers: number;
+  daily_burn: number;
+  runway_days: number | null;
+  financial_health_score: number;
+}
+
+export interface HistoryResponse {
+  company_id: number;
+  data_points: number;
+  series: HistoryDataPoint[];
+}
+
+export interface MarketData {
+  segments: Array<{
+    name: string;
+    type: string;
+    size: number;
+    demand: number;
+    price_sensitivity: number;
+    avg_customer_value: number;
+    sales_cycle_days: number;
+  }>;
+  company: {
+    target_segment: string;
+    price: number;
+    market_share: number;
+    brand_strength: number;
+  };
+}
+
+export interface CompetitorData {
+  id: number;
+  name: string;
+  market_share: number;
+  price: number;
+  product_quality: number;
+  brand_strength: number;
+  target_segment: string;
+  strategy: string;
+}
+
+export interface SalesOpportunity {
+  id: number;
+  name: string;
+  segment: string;
+  value: number;
+  stage: string;
+  created_day: number;
+  expected_close_day: number | null;
+}
+
+// --- Timeline & Decision types ---
+
+export interface TimelineEvent {
+  id: number;
+  day: number;
+  event_type: string;
+  description: string;
+  actor_id: number | null;
+  meta: Record<string, unknown> | null;
+}
+
+export interface TimelineResponse {
+  events: TimelineEvent[];
+  count: number;
+}
+
+export interface Decision {
+  id: number;
+  agent_id: number | null;
+  action: string;
+  reasoning: string | null;
+  outcome: string | null;
+  simulation_day: number;
+  evaluation: string;
+  confidence: number | null;
+  expected_outcome: string | null;
+  expected_value: number | null;
+  actual_value: number | null;
+  expectation_status: string | null;
+}
+
+export interface DecisionsResponse {
+  company_id: number;
+  count: number;
+  decisions: Decision[];
+}
+
+export type EventCategory =
+  | "all"
+  | "decisions"
+  | "financial"
+  | "market"
+  | "workforce"
+  | "product"
+  | "operations"
+  | "risk"
+  | "incident"
+  | "agent";
+
+// --- Scenario & Experiment types ---
+
+export interface ScenarioConfiguration {
+  name: string;
+  mission: string;
+  cash: number;
+  seed: number | null;
+  market_demand: number;
+  market_competition: number;
+  product_readiness: number;
+  technical_debt: number;
+  target_segment: string;
+  price: number;
+}
+
+export interface Scenario {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  is_builtin: boolean;
+  configuration: ScenarioConfiguration | Record<string, unknown>;
+  run_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ScenarioCreate {
+  name: string;
+  description?: string;
+  category?: string;
+  configuration?: ScenarioConfiguration;
+}
+
+export interface SimulationRun {
+  id: number;
+  scenario_id: number;
+  company_id: number | null;
+  seed: number;
+  status: string;
+  simulation_days: number;
+  configuration_snapshot: Record<string, unknown>;
+  final_metrics: Record<string, unknown> | null;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  created_at: string | null;
+}
+
+export interface RunResult {
+  run_id: number;
+  seed: number;
+  status: string;
+  simulation_days: number;
+  final_day: number;
+  metrics: Record<string, unknown>;
+}
+
+export interface MetricSummary {
+  best: number;
+  worst: number;
+  average: number;
+  median: number;
+}
+
+export interface ExperimentResult {
+  scenario_id: number;
+  scenario_name: string;
+  total_runs: number;
+  completed_runs: number;
+  runs: RunResult[];
+  summary: Record<string, MetricSummary>;
+}

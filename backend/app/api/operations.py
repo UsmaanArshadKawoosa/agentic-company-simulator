@@ -34,11 +34,12 @@ def _get_company(db: Session, company_id: int) -> Company:
 
 
 @router.get("/companies/{company_id}/objectives", response_model=list[ObjectiveRead])
-def list_objectives(company_id: int, db: Session = Depends(get_db)):
+def list_objectives(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     _get_company(db, company_id)
+    limit = max(1, min(limit, 1000))
     objectives = list(
         db.execute(
-            select(Objective).where(Objective.company_id == company_id).order_by(Objective.priority.desc(), Objective.id)
+            select(Objective).where(Objective.company_id == company_id).order_by(Objective.priority.desc(), Objective.id).limit(limit)
         ).scalars().all()
     )
     return objectives
@@ -98,11 +99,12 @@ def update_objective(company_id: int, objective_id: int, progress: float | None 
 
 
 @router.get("/companies/{company_id}/risks", response_model=list[RiskRead])
-def list_risks(company_id: int, db: Session = Depends(get_db)):
+def list_risks(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     _get_company(db, company_id)
+    limit = max(1, min(limit, 1000))
     risks = list(
         db.execute(
-            select(Risk).where(Risk.company_id == company_id).order_by(Risk.severity.desc(), Risk.detected_day.desc())
+            select(Risk).where(Risk.company_id == company_id).order_by(Risk.severity.desc(), Risk.detected_day.desc()).limit(limit)
         ).scalars().all()
     )
     return risks
@@ -158,11 +160,12 @@ def update_risk(company_id: int, risk_id: int, status: str | None = None, mitiga
 
 
 @router.get("/companies/{company_id}/incidents", response_model=list[IncidentRead])
-def list_incidents(company_id: int, db: Session = Depends(get_db)):
+def list_incidents(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     _get_company(db, company_id)
+    limit = max(1, min(limit, 1000))
     incidents = list(
         db.execute(
-            select(Incident).where(Incident.company_id == company_id).order_by(Incident.severity.desc(), Incident.detected_day.desc())
+            select(Incident).where(Incident.company_id == company_id).order_by(Incident.severity.desc(), Incident.detected_day.desc()).limit(limit)
         ).scalars().all()
     )
     return incidents
@@ -224,11 +227,12 @@ def update_incident(company_id: int, incident_id: int, status: str | None = None
 
 
 @router.get("/companies/{company_id}/resources", response_model=list[ResourceAllocationRead])
-def list_resource_allocations(company_id: int, db: Session = Depends(get_db)):
+def list_resource_allocations(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     _get_company(db, company_id)
+    limit = max(1, min(limit, 1000))
     allocations = list(
         db.execute(
-            select(ResourceAllocation).where(ResourceAllocation.company_id == company_id).order_by(ResourceAllocation.id)
+            select(ResourceAllocation).where(ResourceAllocation.company_id == company_id).order_by(ResourceAllocation.id).limit(limit)
         ).scalars().all()
     )
     return allocations

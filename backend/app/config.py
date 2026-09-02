@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
+    LOG_LEVEL: str = "INFO"
+
     # --- LLM configuration (never hardcoded) ---
     LLM_PROVIDER: str = "noop"  # noop | mock | anthropic | openai
     LLM_MODEL: str = ""
@@ -23,6 +25,7 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 1024
     LLM_TEMPERATURE: float = 0.0
     LLM_TIMEOUT: int = 30  # seconds
+    LLM_MAX_RETRIES: int = 2
 
 
 @lru_cache

@@ -5,9 +5,11 @@ import { Company } from "../types/types";
 export function CompanyList({
   onSelect,
   onCreateNew,
+  onOpenScenarios,
 }: {
   onSelect: (id: number) => void;
   onCreateNew: () => void;
+  onOpenScenarios?: () => void;
 }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,12 +51,22 @@ export function CompanyList({
     <div className="mx-auto mt-12 max-w-4xl px-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-100">Companies</h1>
-        <button
-          onClick={onCreateNew}
-          className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          Create Company
-        </button>
+        <div className="flex items-center gap-3">
+          {onOpenScenarios && (
+            <button
+              onClick={onOpenScenarios}
+              className="rounded bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
+            >
+              Scenarios
+            </button>
+          )}
+          <button
+            onClick={onCreateNew}
+            className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+          >
+            Create Company
+          </button>
+        </div>
       </div>
 
       {error && (

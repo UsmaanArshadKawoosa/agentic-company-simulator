@@ -1,6 +1,9 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import logging
+import time
+
 from app.agents import instantiate_agent
 from app.agents.cycle_result import CycleResult
 from app.enums import CompanyStatus, EventType
@@ -47,8 +50,26 @@ from app.simulation.domain import SimulationContext, make_rng
 from app.simulation.events import EventEmitter
 from app.simulation.state import SimulationState
 
+logger = logging.getLogger("agent_company_simulator")
+
 # Deterministic execution order: CEO, CTO, CMO, ENGINEER.
 ROLE_ORDER = {"CEO": 0, "CTO": 1, "CMO": 2, "ENGINEER": 3}
+
+
+class _PhaseTimer:
+    """Lightweight phase timer for simulation profiling."""
+
+    def __init__(self, phase: str) -> None:
+        self.phase = phase
+        self.start = 0.0
+
+    def __enter__(self) -> "_PhaseTimer":
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        duration_ms = (time.perf_counter() - self.start) * 1000
+        logger.debug("simulation.phase %s duration=%.2fms", self.phase, duration_ms)
 
 
 class SimulationEngine:
@@ -168,6 +189,7 @@ class SimulationEngine:
         return SimulationState.from_company(db, company)
 
     def tick(self, db: Session, company_id: int) -> SimulationState:
+        tick_start = time.perf_counter()
         company = self._get_company(db, company_id)
         if company.status != CompanyStatus.RUNNING:
             raise ValueError(
@@ -186,255 +208,270 @@ class SimulationEngine:
 
         ctx = self._ctx(db, company, day)
 
-        # --- Phase 6: Ensure market segments and competitors exist ---
-        segment_system.ensure_segments(db)
-        competitor_system.ensure_competitors(db)
+        with _PhaseTimer("market"):
+            # --- Phase 6: Ensure market segments and competitors exist ---
+            segment_system.ensure_segments(db)
+            competitor_system.ensure_competitors(db)
 
-        # 2. Evolve market conditions.
-        market_update = market_system.evolve_market(ctx)
-        all_events.append(
-            emitter.emit(
-                EventType.MARKET_UPDATE,
-                f"Market evolved: demand={market_update['new']['demand']:.3f}, "
-                f"competition={market_update['new']['competition']:.3f}, "
-                f"sentiment={market_update['new']['sentiment']:.3f}.",
-                metadata={"market": market_update},
-            )
-        )
-
-        # 3. Evolve market segments.
-        segment_system.evolve_segments(db, ctx.rng)
-
-        # 4. Evolve competitors.
-        all_events.extend(competitor_system.evolve_competitors(ctx))
-
-        # 5. Generate environmental events (extended with Phase 6 events).
-        all_events.extend(market_system.generate_environmental_events(ctx))
-
-        # 6. Update task dependency/blocking state.
-        all_events.extend(execution_system.update_blocking_state(ctx))
-
-        # 6b. Phase 11: Update priorities and detect resource constraints.
-        company_tasks = list(
-            db.execute(select(Task).where(Task.company_id == company.id)).scalars().all()
-        )
-        prioritized_tasks = priority_system.get_prioritized_tasks(ctx)
-        resource_utilization = resource_system.get_resource_utilization(ctx)
-        for rt, util in resource_utilization.items():
-            if util.get("total_allocated", 0) > util.get("available", 0) * 0.8:
-                all_events.append(
-                    emitter.emit(
-                        EventType.RESOURCE_CONSTRAINED,
-                        f"Resource {rt} is heavily utilized.",
-                        metadata={"resource_type": rt, "utilization": util},
-                    )
-                )
-
-        # 6a. Phase 9: Update workforce onboarding, morale, productivity, performance.
-        all_events.extend(workforce_system.update_onboarding(ctx))
-        all_events.extend(workforce_system.update_morale(ctx))
-        all_events.extend(workforce_system.update_productivity(ctx))
-        all_events.extend(workforce_system.evaluate_performance(ctx))
-
-        # 7. Execute available work (engineer capacity + employee capacity).
-        all_events.extend(execution_system.execute_work(ctx))
-
-        # 8-9. Update milestones and projects.
-        all_events.extend(milestone_system.update_milestones(ctx))
-        progress_system.update_projects_and_readiness(ctx)
-        all_events.append(
-            emitter.emit(
-                EventType.PRODUCT_PROGRESS,
-                f"Product readiness is now {company.product_readiness:.1f}%.",
-                metadata={"readiness": round(company.product_readiness, 4)},
-            )
-        )
-
-        # 10-11. Update product features, readiness, quality.
-        all_events.extend(product_system.update_features(ctx))
-        all_events.extend(product_system.update_product(ctx))
-
-        # 12. Phase 6: Update campaigns (spend, completion).
-        all_events.extend(marketing_system.update_campaigns(ctx))
-
-        # 13. Phase 6: Advance sales pipeline.
-        all_events.extend(sales_system.advance_pipeline(ctx))
-
-        # 14. Phase 6: Update market share cache.
-        strategy_system.update_market_share_cache(ctx)
-
-        # 15. Customer acquisition/churn.
-        agents = self._get_agents_ordered(db, company_id)
-        existing_customers = list(
-            db.execute(select(CustomerModel).where(CustomerModel.company_id == company.id))
-            .scalars()
-            .all()
-        )
-        company_tasks = list(
-            db.execute(select(Task).where(Task.company_id == company.id)).scalars().all()
-        )
-        mkt_progress = progress_system.marketing_progress(company_tasks)
-        new_customers = customer_system.acquire_customers(
-            ctx, existing_customers, mkt_progress, company.product_readiness
-        )
-        for nc in new_customers:
-            db.add(nc)
-            db.flush()
+            # 2. Evolve market conditions.
+            market_update = market_system.evolve_market(ctx)
             all_events.append(
                 emitter.emit(
-                    EventType.CUSTOMER_ACQUIRED,
-                    f"New customer '{nc.name}' acquired (monthly value ${nc.monthly_value:.2f}).",
-                    target_type="customer",
-                    target_id=nc.id,
-                    metadata={"monthly_value": nc.monthly_value, "day": day},
+                    EventType.MARKET_UPDATE,
+                    f"Market evolved: demand={market_update['new']['demand']:.3f}, "
+                    f"competition={market_update['new']['competition']:.3f}, "
+                    f"sentiment={market_update['new']['sentiment']:.3f}.",
+                    metadata={"market": market_update},
                 )
             )
-        churn_events = customer_system.process_churn(ctx, existing_customers, company.product_readiness)
-        all_events.extend(churn_events)
 
-        # 16. Economy: revenue, expenses, cash (includes campaign spend).
-        all_customers = list(
-            db.execute(select(CustomerModel).where(CustomerModel.company_id == company.id))
-            .scalars()
-            .all()
-        )
-        campaign_spend = marketing_system.total_campaign_spend(ctx)
-        financial = economy_system.process_economy(ctx, agents, all_customers, extra_expenses=campaign_spend)
-        all_events.append(
-            emitter.emit(
-                EventType.FINANCIAL_SUMMARY,
-                f"Day {day}: revenue=${financial['revenue']:.2f}, "
-                f"expenses=${financial['expenses']:.2f}, "
-                f"profit=${financial['profit']:.2f}, "
-                f"cash=${financial['cash']:.2f}.",
-                metadata={"financial": financial},
+            # 3. Evolve market segments.
+            segment_system.evolve_segments(db, ctx.rng)
+
+            # 4. Evolve competitors.
+            all_events.extend(competitor_system.evolve_competitors(ctx))
+
+            # 5. Generate environmental events (extended with Phase 6 events).
+            all_events.extend(market_system.generate_environmental_events(ctx))
+
+        with _PhaseTimer("workforce"):
+            # 6. Update task dependency/blocking state.
+            all_events.extend(execution_system.update_blocking_state(ctx))
+
+            # 6b. Phase 11: Update priorities and detect resource constraints.
+            company_tasks = list(
+                db.execute(select(Task).where(Task.company_id == company.id)).scalars().all()
             )
-        )
+            prioritized_tasks = priority_system.get_prioritized_tasks(ctx)
+            resource_utilization = resource_system.get_resource_utilization(ctx)
+            for rt, util in resource_utilization.items():
+                if util.get("total_allocated", 0) > util.get("available", 0) * 0.8:
+                    all_events.append(
+                        emitter.emit(
+                            EventType.RESOURCE_CONSTRAINED,
+                            f"Resource {rt} is heavily utilized.",
+                            metadata={"resource_type": rt, "utilization": util},
+                        )
+                    )
 
-        # 16a. Phase 10: Calculate financial health metrics.
-        financial_metrics = financial_health_system.get_financial_metrics(company)
-        all_events.append(
-            emitter.emit(
-                EventType.FINANCIAL_SUMMARY,
-                f"Financial health: {financial_metrics['financial_health']} "
-                f"(score={financial_metrics['financial_health_score']:.2f}, "
-                f"runway={financial_metrics['runway_days']} days, "
-                f"burn=${financial_metrics['daily_burn']:.2f}/day).",
-                metadata={"financial_metrics": financial_metrics},
-            )
-        )
+            # 6a. Phase 9: Update workforce onboarding, morale, productivity, performance.
+            all_events.extend(workforce_system.update_onboarding(ctx))
+            all_events.extend(workforce_system.update_morale(ctx))
+            all_events.extend(workforce_system.update_productivity(ctx))
+            all_events.extend(workforce_system.evaluate_performance(ctx))
 
-        # 16b. Phase 10: Update fundraising pipeline.
-        all_events.extend(fundraising_system.update_pipeline(ctx))
+            # 7. Execute available work (engineer capacity + employee capacity).
+            all_events.extend(execution_system.execute_work(ctx))
 
-        # 17. Phase 11: Detect risks.
-        detected_risks = risk_system.detect_risks(ctx)
-        all_events.extend(
-            [
+        with _PhaseTimer("product"):
+            # 8-9. Update milestones and projects.
+            all_events.extend(milestone_system.update_milestones(ctx))
+            progress_system.update_projects_and_readiness(ctx)
+            all_events.append(
                 emitter.emit(
-                    EventType.RISK_DETECTED,
-                    f"Risk detected: {r.risk_type} (severity={r.severity.value}).",
-                    target_type="risk",
-                    target_id=r.id,
-                    metadata={"risk_type": r.risk_type, "severity": r.severity.value, "day": day},
+                    EventType.PRODUCT_PROGRESS,
+                    f"Product readiness is now {company.product_readiness:.1f}%.",
+                    metadata={"readiness": round(company.product_readiness, 4)},
                 )
-                for r in detected_risks
-            ]
-        )
-
-        # 17a. Phase 11: Detect incidents from critical risks.
-        active_risks = risk_system.get_active_risks(ctx)
-        detected_incidents = incident_system.detect_incidents_from_risks(ctx, active_risks)
-        all_events.extend(
-            [
-                emitter.emit(
-                    EventType.INCIDENT_CREATED,
-                    f"Incident created: {i.incident_type.value} (severity={i.severity.value}).",
-                    target_type="incident",
-                    target_id=i.id,
-                    metadata={"incident_type": i.incident_type.value, "severity": i.severity.value, "day": day},
-                )
-                for i in detected_incidents
-            ]
-        )
-
-        # 18. Phase 5: evaluate expectations from previous decisions.
-        all_events.extend(expectation_system.evaluate_expectations(ctx))
-
-        # 19. Phase 5: advance plans deterministically based on step completion.
-        all_events.extend(plan_system.update_plans(ctx))
-
-        # 19a. Phase 11: Update objectives progress based on plan completion.
-        active_plans = list(
-            db.execute(
-                select(Plan).where(Plan.company_id == company.id, Plan.status == "ACTIVE")
-            ).scalars().all()
-        )
-        for plan in active_plans:
-            if plan.goal_id:
-                goal = db.get(Goal, plan.goal_id)
-                if goal:
-                    goal.progress = min(100.0, goal.progress + plan.progress * 0.1)
-                    db.flush()
-
-        # 19b. Phase 11: Update management attention metrics.
-        attention_metrics = attention_system.compute_management_attention(ctx)
-        all_events.append(
-            emitter.emit(
-                EventType.PRIORITY_CHANGED,
-                f"Management attention: {attention_metrics['active_objectives']} objectives, "
-                f"{attention_metrics['active_risks']} risks, {attention_metrics['active_incidents']} incidents. "
-                f"Overloaded: {attention_metrics['overloaded']}",
-                metadata=attention_metrics,
             )
-        )
 
-        # 20. Phase 5: evaluate decision quality for resolved expectations.
-        all_events.extend(decision_quality_system.evaluate_pending_decisions(ctx))
+            # 10-11. Update product features, readiness, quality.
+            all_events.extend(product_system.update_features(ctx))
+            all_events.extend(product_system.update_product(ctx))
 
-        # 20. Agents observe updated state and act.
-        for agent in agents:
-            wrapper = instantiate_agent(agent, company, self.llm)
-            try:
-                result: CycleResult = wrapper.run_cycle(db, day)
-            except Exception as exc:  # one agent failure must not kill the tick
+        with _PhaseTimer("marketing_sales"):
+            # 12. Phase 6: Update campaigns (spend, completion).
+            all_events.extend(marketing_system.update_campaigns(ctx))
+
+            # 13. Phase 6: Advance sales pipeline.
+            all_events.extend(sales_system.advance_pipeline(ctx))
+
+            # 14. Phase 6: Update market share cache.
+            strategy_system.update_market_share_cache(ctx)
+
+        with _PhaseTimer("customers"):
+            # 15. Customer acquisition/churn.
+            agents = self._get_agents_ordered(db, company_id)
+            existing_customers = list(
+                db.execute(select(CustomerModel).where(CustomerModel.company_id == company.id))
+                .scalars()
+                .all()
+            )
+            company_tasks = list(
+                db.execute(select(Task).where(Task.company_id == company.id)).scalars().all()
+            )
+            mkt_progress = progress_system.marketing_progress(company_tasks)
+            new_customers = customer_system.acquire_customers(
+                ctx, existing_customers, mkt_progress, company.product_readiness
+            )
+            for nc in new_customers:
+                db.add(nc)
+                db.flush()
                 all_events.append(
-                    Event(
-                        company_id=company.id,
-                        actor_id=agent.id,
-                        event_type=EventType.DECIDE,
-                        description=f"Agent {agent.role.value} cycle failed: {exc}",
-                        target_type="agent",
-                        target_id=agent.id,
-                        meta={"error": str(exc)},
-                        simulation_day=day,
+                    emitter.emit(
+                        EventType.CUSTOMER_ACQUIRED,
+                        f"New customer '{nc.name}' acquired (monthly value ${nc.monthly_value:.2f}).",
+                        target_type="customer",
+                        target_id=nc.id,
+                        metadata={"monthly_value": nc.monthly_value, "day": day},
                     )
                 )
-                continue
-            all_events.extend(result.events)
-            if result.decision is not None:
-                all_decisions.append(result.decision)
-            if result.memory is not None:
-                all_memories.append(result.memory)
-            # Mark agent's unread messages as read after they act.
-            all_events.extend(
-                communication_system.mark_messages_read(ctx, agent.id)
+            churn_events = customer_system.process_churn(ctx, existing_customers, company.product_readiness)
+            all_events.extend(churn_events)
+
+        with _PhaseTimer("economy"):
+            # 16. Economy: revenue, expenses, cash (includes campaign spend).
+            all_customers = list(
+                db.execute(select(CustomerModel).where(CustomerModel.company_id == company.id))
+                .scalars()
+                .all()
+            )
+            campaign_spend = marketing_system.total_campaign_spend(ctx)
+            financial = economy_system.process_economy(ctx, agents, all_customers, extra_expenses=campaign_spend)
+            all_events.append(
+                emitter.emit(
+                    EventType.FINANCIAL_SUMMARY,
+                    f"Day {day}: revenue=${financial['revenue']:.2f}, "
+                    f"expenses=${financial['expenses']:.2f}, "
+                    f"profit=${financial['profit']:.2f}, "
+                    f"cash=${financial['cash']:.2f}.",
+                    metadata={"financial": financial},
+                )
             )
 
-        # 21. Evaluate goals.
-        active_customer_count = sum(1 for c in all_customers if c.status.value == "ACTIVE")
-        goal_events = progress_system.update_goal_progress(ctx, company.product_readiness, active_customer_count)
-        all_events.extend(goal_events)
+            # 16a. Phase 10: Calculate financial health metrics.
+            financial_metrics = financial_health_system.get_financial_metrics(company)
+            all_events.append(
+                emitter.emit(
+                    EventType.FINANCIAL_SUMMARY,
+                    f"Financial health: {financial_metrics['financial_health']} "
+                    f"(score={financial_metrics['financial_health_score']:.2f}, "
+                    f"runway={financial_metrics['runway_days']} days, "
+                    f"burn=${financial_metrics['daily_burn']:.2f}/day).",
+                    metadata={"financial_metrics": financial_metrics},
+                )
+            )
 
-        # 22. Evaluate company success/failure.
-        lifecycle_events = outcome_system.evaluate_company(ctx)
-        all_events.extend(lifecycle_events)
+            # 16b. Phase 10: Update fundraising pipeline.
+            all_events.extend(fundraising_system.update_pipeline(ctx))
+
+        with _PhaseTimer("operations"):
+            # 17. Phase 11: Detect risks.
+            detected_risks = risk_system.detect_risks(ctx)
+            all_events.extend(
+                [
+                    emitter.emit(
+                        EventType.RISK_DETECTED,
+                        f"Risk detected: {r.risk_type} (severity={r.severity.value}).",
+                        target_type="risk",
+                        target_id=r.id,
+                        metadata={"risk_type": r.risk_type, "severity": r.severity.value, "day": day},
+                    )
+                    for r in detected_risks
+                ]
+            )
+
+            # 17a. Phase 11: Detect incidents from critical risks.
+            active_risks = risk_system.get_active_risks(ctx)
+            detected_incidents = incident_system.detect_incidents_from_risks(ctx, active_risks)
+            all_events.extend(
+                [
+                    emitter.emit(
+                        EventType.INCIDENT_CREATED,
+                        f"Incident created: {i.incident_type.value} (severity={i.severity.value}).",
+                        target_type="incident",
+                        target_id=i.id,
+                        metadata={"incident_type": i.incident_type.value, "severity": i.severity.value, "day": day},
+                    )
+                    for i in detected_incidents
+                ]
+            )
+
+            # 18. Phase 5: evaluate expectations from previous decisions.
+            all_events.extend(expectation_system.evaluate_expectations(ctx))
+
+            # 19. Phase 5: advance plans deterministically based on step completion.
+            all_events.extend(plan_system.update_plans(ctx))
+
+            # 19a. Phase 11: Update objectives progress based on plan completion.
+            active_plans = list(
+                db.execute(
+                    select(Plan).where(Plan.company_id == company.id, Plan.status == "ACTIVE")
+                ).scalars().all()
+            )
+            for plan in active_plans:
+                if plan.goal_id:
+                    goal = db.get(Goal, plan.goal_id)
+                    if goal:
+                        goal.progress = min(100.0, goal.progress + plan.progress * 0.1)
+                        db.flush()
+
+            # 19b. Phase 11: Update management attention metrics.
+            attention_metrics = attention_system.compute_management_attention(ctx)
+            all_events.append(
+                emitter.emit(
+                    EventType.PRIORITY_CHANGED,
+                    f"Management attention: {attention_metrics['active_objectives']} objectives, "
+                    f"{attention_metrics['active_risks']} risks, {attention_metrics['active_incidents']} incidents. "
+                    f"Overloaded: {attention_metrics['overloaded']}",
+                    metadata=attention_metrics,
+                )
+            )
+
+            # 20. Phase 5: evaluate decision quality for resolved expectations.
+            all_events.extend(decision_quality_system.evaluate_pending_decisions(ctx))
+
+        with _PhaseTimer("agents"):
+            # 20. Agents observe updated state and act.
+            for agent in agents:
+                wrapper = instantiate_agent(agent, company, self.llm)
+                try:
+                    result: CycleResult = wrapper.run_cycle(db, day)
+                except Exception as exc:  # one agent failure must not kill the tick
+                    all_events.append(
+                        Event(
+                            company_id=company.id,
+                            actor_id=agent.id,
+                            event_type=EventType.DECIDE,
+                            description=f"Agent {agent.role.value} cycle failed: {exc}",
+                            target_type="agent",
+                            target_id=agent.id,
+                            meta={"error": str(exc)},
+                            simulation_day=day,
+                        )
+                    )
+                    continue
+                all_events.extend(result.events)
+                if result.decision is not None:
+                    all_decisions.append(result.decision)
+                if result.memory is not None:
+                    all_memories.append(result.memory)
+                # Mark agent's unread messages as read after they act.
+                all_events.extend(
+                    communication_system.mark_messages_read(ctx, agent.id)
+                )
+
+        with _PhaseTimer("outcomes"):
+            # 21. Evaluate goals.
+            active_customer_count = sum(1 for c in all_customers if c.status.value == "ACTIVE")
+            goal_events = progress_system.update_goal_progress(ctx, company.product_readiness, active_customer_count)
+            all_events.extend(goal_events)
+
+            # 22. Evaluate company success/failure.
+            lifecycle_events = outcome_system.evaluate_company(ctx)
+            all_events.extend(lifecycle_events)
 
         db.add_all(all_events)
         db.add_all(all_decisions)
         db.add_all(all_memories)
         db.commit()
         db.refresh(company)
+
+        total_ms = (time.perf_counter() - tick_start) * 1000
+        logger.info(
+            "simulation.tick company=%d day=%d duration=%.2fms events=%d decisions=%d",
+            company.id, day, total_ms, len(all_events), len(all_decisions)
+        )
 
         # --- Broadcast tick completion to WebSocket subscribers ---
         self._broadcast_event(

@@ -416,7 +416,132 @@ All configuration is via environment variables (see `.env.example`):
 | `LLM_MAX_TOKENS` | 1024 | Max response tokens |
 | `LLM_TEMPERATURE` | 0.0 | Sampling temperature |
 | `LLM_TIMEOUT` | 30 | Request timeout (seconds) |
-| `CORS_ORIGINS` | localhost:5173 | Allowed CORS origins |
+| `LLM_MAX_RETRIES` | 2 | Max retry attempts for transient LLM failures |
+| `CORS_ORIGINS` | localhost:5173 | Allowed CORS origins (comma-separated) |
+| `LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `ENVIRONMENT` | `development` | Runtime environment |
+
+## Development Setup
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 16 (optional; SQLite is used for tests)
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --port 8000
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Run Tests
+
+```bash
+# Backend
+cd backend
+python -m pytest -q
+
+# Frontend
+cd frontend
+npx vitest run
+```
+
+### Production Build
+
+```bash
+cd frontend
+npm run build
+```
+
+## Health & Readiness
+
+The backend exposes two health endpoints:
+
+- `GET /health` — liveness probe. Returns `{"status": "ok", "service": "..."}`. Does not check dependencies.
+- `GET /ready` — readiness probe. Verifies database connectivity and returns `{"status": "ok", "database": "ok", ...}` or `{"status": "error", "database": "error", ...}`.
+
+Both endpoints include an `X-Request-ID` header for correlation.
+
+## Observability
+
+### Structured Logging
+
+The backend uses structured Python logging with request-scoped correlation IDs. Every log line includes a `request_id` when available. Simulation ticks log duration, event count, and decision count at INFO level. Phase-level timing is available at DEBUG level.
+
+### Request Tracing
+
+Each HTTP request receives a unique `X-Request-ID`. If the client provides one via the `X-Request-ID` header, it is preserved; otherwise a new UUID is generated. The request ID is returned in the response header and included in all log lines for that request.
+
+### Simulation Timing
+
+The simulation engine instruments each tick with phase-level timing:
+- `market` — market evolution, segments, competitors, environmental events
+- `workforce` — onboarding, morale, productivity, performance, work execution
+- `product` — milestones, projects, features, product readiness
+- `marketing_sales` — campaigns, sales pipeline, market share
+- `customers` — acquisition and churn
+- `economy` — revenue, expenses, cash, financial health, fundraising
+- `operations` — risks, incidents, expectations, plans, objectives, attention
+- `agents` — agent observe/think/decide/act/reflect cycles
+- `outcomes` — goal evaluation, company success/failure
+
+Enable phase timing by setting `LOG_LEVEL=DEBUG`.
+
+## Performance Considerations
+
+### Database Indexes
+
+The following composite indexes are applied to frequently queried tables:
+- `events`: `(company_id, simulation_day)`
+- `decisions`: `(company_id, simulation_day)`
+- `tasks`: `(company_id, status)`
+- `employees`: `(company_id, status)`
+- `candidates`: `(company_id, status)`
+- `simulation_runs`: `(scenario_id, status)`
+
+### API Pagination
+
+All collection endpoints enforce bounded limits:
+- Default limit: 100
+- Maximum limit: 1000 (configurable per endpoint)
+- Summary endpoints (dashboard, workforce) use higher caps (10000)
+
+### Frontend Code Splitting
+
+Heavy routes (Analytics, Timeline, Experiment, Run Detail, Scenario Editor) are lazy-loaded via `React.lazy()` and `Suspense`, reducing initial bundle size.
+
+### Test Suite
+
+The backend test suite uses SQLite with per-test database resets for isolation. Tests exercise the full stack from API to database.
+
+## Security
+
+- **CORS**: Allowed origins are configured via `CORS_ORIGINS` environment variable. Never use wildcard origins in production.
+- **Secrets**: API keys and credentials are loaded exclusively from environment variables. No secrets are committed to the repository.
+- **Input Validation**: All API inputs are validated via Pydantic schemas. Enum values are constrained to defined sets.
+- **Error Responses**: Production responses do not expose stack traces or internal implementation details. Detailed errors are logged server-side only.
+
+## Known Limitations
+
+- **Default LLM is NoOp**: Without configuring a real LLM provider, agents take deterministic placeholder actions. Set `LLM_PROVIDER=anthropic` or `LLM_PROVIDER=openai` with a valid API key for autonomous behavior.
+- **Single-company focus**: The engine is optimized for simulating one company at a time. Multi-company scenarios require running separate instances.
+- **Simplified physics**: Market dynamics, customer behavior, and financial models are simplified abstractions — not intended for real business planning.
+- **No persistence of learned state**: Agent memories are stored in the database but sophisticated learning/retrieval is limited to importance-based filtering.
+- **Synchronous simulation tick**: The simulation tick runs synchronously in the request handler. Long simulations block the API for the duration of the tick. For very long runs, use the scenario runner which executes in a background thread.
 
 ## Example Usage
 

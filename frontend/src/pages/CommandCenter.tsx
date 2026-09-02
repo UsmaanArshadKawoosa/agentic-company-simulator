@@ -16,12 +16,12 @@ interface DashboardData {
   tasks: any[];
 }
 
-export function CommandCenter({ companyId }: { companyId: number }) {
+export function CommandCenter({ companyId, onOpenAnalytics, onOpenTimeline }: { companyId: number; onOpenAnalytics?: () => void; onOpenTimeline?: () => void }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [events, setEvents] = useState<SimEvent[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [speed, setSpeed] = useState<string>("1x");
   const [isRunning, setIsRunning] = useState(false);
@@ -43,6 +43,7 @@ export function CommandCenter({ companyId }: { companyId: number }) {
   const { connectionState, messages, clearMessages } = useWebSocket(companyId);
 
   const refresh = useCallback(async () => {
+    setError(null);
     try {
       const [c, a, e, d, emp, j, cand, wf, fin, val, inv, rounds, pipe, budgets] = await Promise.all([
         api.getCompany(companyId),
@@ -77,6 +78,8 @@ export function CommandCenter({ companyId }: { companyId: number }) {
       setIsRunning(c.status === "RUNNING");
     } catch (err) {
       setError(String(err));
+    } finally {
+      setLoading(false);
     }
   }, [companyId]);
 
@@ -163,6 +166,24 @@ export function CommandCenter({ companyId }: { companyId: number }) {
     );
   }, [connectionState]);
 
+  if (loading && !company) {
+    return <div className="flex h-screen items-center justify-center text-slate-400">Loading company...</div>;
+  }
+
+  if (error && !company) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 text-slate-400">
+        <div className="text-rose-400">{error}</div>
+        <button
+          onClick={refresh}
+          className="rounded bg-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-600"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (!company) {
     return <div className="flex h-screen items-center justify-center text-slate-400">Loading company...</div>;
   }
@@ -185,8 +206,24 @@ export function CommandCenter({ companyId }: { companyId: number }) {
             {company.status}
           </span>
         </div>
-        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
           {connectionIndicator}
+          {onOpenAnalytics && (
+            <button
+              onClick={onOpenAnalytics}
+              className="rounded bg-cyan-900 px-3 py-1.5 text-xs font-semibold hover:bg-cyan-700"
+            >
+              Analytics
+            </button>
+          )}
+          {onOpenTimeline && (
+            <button
+              onClick={onOpenTimeline}
+              className="rounded bg-violet-900 px-3 py-1.5 text-xs font-semibold hover:bg-violet-700"
+            >
+              Timeline
+            </button>
+          )}
           <button
             onClick={() => setShowOperations(!showOperations)}
             className="rounded bg-orange-900 px-3 py-1.5 text-xs font-semibold hover:bg-orange-700"
@@ -369,7 +406,7 @@ export function CommandCenter({ companyId }: { companyId: number }) {
           )}
           {showOperations && (
             <div className="mt-6">
-              <OperationsPanel companyId={companyId} />
+              <OperationsPanel companyId={companyId} visible={showOperations} />
             </div>
           )}
         </aside>

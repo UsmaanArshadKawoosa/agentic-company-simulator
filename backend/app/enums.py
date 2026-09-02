@@ -386,3 +386,14 @@ class IncidentType(str, Enum):
     SALES_PIPELINE_CRISIS = "SALES_PIPELINE_CRISIS"
     TECHNICAL_DEBT_CRISIS = "TECHNICAL_DEBT_CRISIS"
     MARKET_CONTRACTION_CRISIS = "MARKET_CONTRACTION_CRISIS"
+
+
+# --- Phase 16: Scenario & Experiment enums ---
+
+
+class ScenarioStatus(str, Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"

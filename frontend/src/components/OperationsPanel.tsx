@@ -1,35 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api/api";
+import { Objective, Risk, Incident } from "../types/types";
 
-interface Objective {
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  priority: number;
-  progress: number;
-  objective_type: string;
+interface OperationsPanelProps {
+  companyId: number;
+  visible?: boolean;
 }
 
-interface Risk {
-  id: number;
-  risk_type: string;
-  severity: string;
-  status: string;
-  description: string;
-  detected_day: number;
-}
-
-interface Incident {
-  id: number;
-  incident_type: string;
-  severity: string;
-  status: string;
-  description: string;
-  detected_day: number;
-}
-
-export function OperationsPanel({ companyId }: { companyId: number }) {
+export function OperationsPanel({ companyId, visible = true }: OperationsPanelProps) {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [risks, setRisks] = useState<Risk[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -59,10 +37,11 @@ export function OperationsPanel({ companyId }: { companyId: number }) {
   }, [companyId]);
 
   useEffect(() => {
+    if (!visible) return;
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, visible]);
 
   const handleCreateObjective = async (e: React.FormEvent) => {
     e.preventDefault();

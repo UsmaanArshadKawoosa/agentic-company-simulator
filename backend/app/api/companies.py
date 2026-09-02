@@ -167,12 +167,13 @@ def list_customers(company_id: int, db: Session = Depends(get_db), limit: int = 
 
 
 @router.get("/{company_id}/metrics")
-def get_metrics(company_id: int, db: Session = Depends(get_db)) -> dict:
+def get_metrics(company_id: int, db: Session = Depends(get_db), limit: int = 10000) -> dict:
     company = db.get(Company, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="Company not found")
+    limit = max(1, min(limit, 10000))
     customers = list(
-        db.execute(select(Customer).where(Customer.company_id == company_id))
+        db.execute(select(Customer).where(Customer.company_id == company_id).limit(limit))
         .scalars()
         .all()
     )

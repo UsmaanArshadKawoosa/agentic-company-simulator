@@ -52,11 +52,12 @@ def list_employees(company_id: int, db: Session = Depends(get_db), limit: int = 
 
 
 @router.get("/companies/{company_id}/jobs")
-def list_jobs(company_id: int, db: Session = Depends(get_db)):
+def list_jobs(company_id: int, db: Session = Depends(get_db), limit: int = 100):
     _company_or_404(db, company_id)
+    limit = max(1, min(limit, 1000))
     jobs = list(
         db.execute(
-            select(JobOpening).where(JobOpening.company_id == company_id)
+            select(JobOpening).where(JobOpening.company_id == company_id).limit(limit)
         )
         .scalars()
         .all()
@@ -105,12 +106,13 @@ def list_candidates(company_id: int, db: Session = Depends(get_db), limit: int =
 
 
 @router.get("/companies/{company_id}/workforce")
-def workforce_summary(company_id: int, db: Session = Depends(get_db)):
+def workforce_summary(company_id: int, db: Session = Depends(get_db), limit: int = 10000):
     company = _company_or_404(db, company_id)
+    limit = max(1, min(limit, 10000))
     ctx = _sim_ctx(db, company, company.current_day)
     employees = list(
         db.execute(
-            select(Employee).where(Employee.company_id == company_id)
+            select(Employee).where(Employee.company_id == company_id).limit(limit)
         )
         .scalars()
         .all()
@@ -138,11 +140,12 @@ def workforce_summary(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/companies/{company_id}/organization")
-def organization_hierarchy(company_id: int, db: Session = Depends(get_db)):
+def organization_hierarchy(company_id: int, db: Session = Depends(get_db), limit: int = 10000):
     _company_or_404(db, company_id)
+    limit = max(1, min(limit, 10000))
     employees = list(
         db.execute(
-            select(Employee).where(Employee.company_id == company_id)
+            select(Employee).where(Employee.company_id == company_id).limit(limit)
         )
         .scalars()
         .all()

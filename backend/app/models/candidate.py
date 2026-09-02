@@ -1,5 +1,5 @@
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Float, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -34,6 +34,10 @@ class Candidate(Base, TimestampMixin):
         ForeignKey("agents.id", ondelete="SET NULL"), index=True, nullable=True
     )
     evaluated_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    __table_args__ = (
+        Index("ix_candidates_company_status", "company_id", "status"),
+    )
 
     company: Mapped["Company"] = relationship(  # noqa: F821
         "Company", back_populates="candidates"

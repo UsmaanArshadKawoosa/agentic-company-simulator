@@ -12,6 +12,7 @@ from app.models.objective import Objective
 from app.models.project import Project
 from app.models.resource_allocation import ResourceAllocation
 from app.models.risk import Risk
+from app.models.scenario import Scenario, SimulationRun
 from app.models.task import Task
 
 __all__ = [
@@ -29,5 +30,7 @@ __all__ = [
     "Project",
     "ResourceAllocation",
     "Risk",
+    "Scenario",
+    "SimulationRun",
     "Task",
 ]

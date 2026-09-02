@@ -34,8 +34,9 @@ export function CreateCompany({
       </h1>
       <form onSubmit={submit} className="space-y-4">
         <div>
-          <label className="block text-sm text-slate-300">Name</label>
+          <label htmlFor="company-name" className="block text-sm text-slate-300">Name</label>
           <input
+            id="company-name"
             className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -43,8 +44,9 @@ export function CreateCompany({
           />
         </div>
         <div>
-          <label className="block text-sm text-slate-300">Mission</label>
+          <label htmlFor="company-mission" className="block text-sm text-slate-300">Mission</label>
           <textarea
+            id="company-mission"
             className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100"
             value={mission}
             onChange={(e) => setMission(e.target.value)}

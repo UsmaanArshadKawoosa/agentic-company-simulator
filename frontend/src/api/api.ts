@@ -1,4 +1,4 @@
-import { Agent, Company, SimEvent, SimulationState, Employee, JobOpening, Candidate, WorkforceSummary } from "../types/types";
+import { Agent, Company, SimEvent, SimulationState, Employee, JobOpening, Candidate, WorkforceSummary, Objective, Risk, Incident, ResourceAllocation, HistoryResponse, MarketData, CompetitorData, SalesOpportunity, TimelineEvent, TimelineResponse, Decision, DecisionsResponse, Scenario, ScenarioCreate, SimulationRun, ExperimentResult } from "../types/types";
 
 const BASE = "/api";
 
@@ -8,8 +8,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Request failed (${res.status}): ${text}`);
+    let detail: string;
+    try {
+      const json = await res.json();
+      detail = (json && (json.detail || json.message)) || JSON.stringify(json);
+    } catch {
+      try {
+        detail = await res.text();
+      } catch {
+        detail = `Request failed (${res.status})`;
+      }
+    }
+    throw new Error(typeof detail === "string" && detail ? detail : `Request failed (${res.status})`);
   }
   return (await res.json()) as T;
 }
@@ -64,6 +74,26 @@ export const api = {
   getStrategy: (id: number) => request<any>(`/simulation/${id}/strategy`),
   getCampaigns: (id: number) => request<any[]>(`/simulation/${id}/campaigns`),
   getSales: (id: number) => request<any[]>(`/simulation/${id}/sales`),
+  // Analytics endpoints
+  getHistory: (id: number, limit: number = 50) => request<HistoryResponse>(`/simulation/${id}/history?limit=${limit}`),
+  getMarketData: (id: number) => request<MarketData>(`/simulation/${id}/market`),
+  getCompetitorsData: (id: number) => request<CompetitorData[]>(`/simulation/${id}/competitors`),
+  getSalesOpportunities: (id: number) => request<SalesOpportunity[]>(`/simulation/${id}/sales`),
+  getAgentMetricsData: (id: number) => request<any[]>(`/simulation/${id}/agent-metrics`),
+  // Timeline & Decisions endpoints
+  getTimelineEvents: (id: number, params?: { event_type?: string; agent_id?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.event_type) qs.set("event_type", params.event_type);
+    if (params?.agent_id) qs.set("agent_id", String(params.agent_id));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    return request<TimelineEvent[]>(`/simulation/${id}/timeline?${qs.toString()}`);
+  },
+  getDecisions: (id: number, params?: { agent_id?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.agent_id) qs.set("agent_id", String(params.agent_id));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    return request<DecisionsResponse>(`/simulation/${id}/decisions?${qs.toString()}`);
+  },
   // Workforce
   getEmployees: (id: number) => request<Employee[]>(`/workforce/companies/${id}/employees`),
   getJobs: (id: number) => request<JobOpening[]>(`/workforce/companies/${id}/jobs`),
@@ -78,20 +108,42 @@ export const api = {
   getCapTable: (id: number) => request<any[]>(`/simulation/${id}/cap-table`),
   getBudgetRequests: (id: number) => request<any[]>(`/simulation/${id}/budget-requests`),
   // Phase 11 operations endpoints
-  getObjectives: (id: number) => request<any[]>(`/operations/companies/${id}/objectives`),
+  getObjectives: (id: number) => request<Objective[]>(`/operations/companies/${id}/objectives`),
   createObjective: (id: number, title: string, description: string = "", objective_type: string = "OPERATIONAL", priority: number = 1) =>
-    request<any>(`/operations/companies/${id}/objectives?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&objective_type=${objective_type}&priority=${priority}`, { method: "POST" }),
+    request<Objective>(`/operations/companies/${id}/objectives?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&objective_type=${objective_type}&priority=${priority}`, { method: "POST" }),
   updateObjective: (companyId: number, objectiveId: number, updates: { progress?: number; priority?: number; status?: string }) => {
     const qs = new URLSearchParams();
     if (updates.progress !== undefined) qs.set("progress", String(updates.progress));
     if (updates.priority !== undefined) qs.set("priority", String(updates.priority));
     if (updates.status !== undefined) qs.set("status", updates.status);
-    return request<any>(`/operations/companies/${companyId}/objectives/${objectiveId}?${qs.toString()}`, { method: "PATCH" });
+    return request<Objective>(`/operations/companies/${companyId}/objectives/${objectiveId}?${qs.toString()}`, { method: "PATCH" });
   },
-  getRisks: (id: number) => request<any[]>(`/operations/companies/${id}/risks`),
+  getRisks: (id: number) => request<Risk[]>(`/operations/companies/${id}/risks`),
   createRisk: (id: number, risk_type: string, severity: string = "MEDIUM", source: string = "", description: string = "") =>
-    request<any>(`/operations/companies/${id}/risks?risk_type=${encodeURIComponent(risk_type)}&severity=${severity}&source=${encodeURIComponent(source)}&description=${encodeURIComponent(description)}`, { method: "POST" }),
-  getIncidents: (id: number) => request<any[]>(`/operations/companies/${id}/incidents`),
-  getResources: (id: number) => request<any[]>(`/operations/companies/${id}/resources`),
-  getOperationalStatus: (id: number) => request<any>(`/operations/companies/${id}/status`),
+    request<Risk>(`/operations/companies/${id}/risks?risk_type=${encodeURIComponent(risk_type)}&severity=${severity}&source=${encodeURIComponent(source)}&description=${encodeURIComponent(description)}`, { method: "POST" }),
+  getIncidents: (id: number) => request<Incident[]>(`/operations/companies/${id}/incidents`),
+  getResources: (id: number) => request<ResourceAllocation[]>(`/operations/companies/${id}/resources`),
+  getOperationalStatus: (id: number) => request<{
+    company_id: number;
+    current_day: number;
+    attention: Record<string, unknown>;
+    resources: Record<string, unknown>;
+    risks: Array<{ id: number; risk_type: string; severity: string; status: string; detected_day: number }>;
+    incidents: Array<{ id: number; incident_type: string; severity: string; status: string; detected_day: number }>;
+    objectives: Array<{ id: number; title: string; status: string; priority: number; progress: number }>;
+  }>(`/operations/companies/${id}/status`),
+  // --- Scenario & Experiment endpoints ---
+  seedBuiltinScenarios: () => request<{ message: string }>(`/scenarios/seed-builtins`, { method: "POST" }),
+  listScenarios: () => request<Scenario[]>(`/scenarios`),
+  getScenario: (id: number) => request<Scenario>(`/scenarios/${id}`),
+  createScenario: (scenario: ScenarioCreate) => request<Scenario>(`/scenarios`, { method: "POST", body: JSON.stringify(scenario) }),
+  updateScenario: (id: number, scenario: Partial<ScenarioCreate>) => request<Scenario>(`/scenarios/${id}`, { method: "PUT", body: JSON.stringify(scenario) }),
+  deleteScenario: (id: number) => request<void>(`/scenarios/${id}`, { method: "DELETE" }),
+  duplicateScenario: (id: number) => request<Scenario>(`/scenarios/${id}/duplicate`, { method: "POST" }),
+  createRun: (scenarioId: number, seed: number | null, simulationDays: number) => request<SimulationRun>(`/scenarios/${scenarioId}/runs`, { method: "POST", body: JSON.stringify({ seed, simulation_days: simulationDays }) }),
+  listRuns: (scenarioId: number) => request<SimulationRun[]>(`/scenarios/${scenarioId}/runs`),
+  executeRun: (runId: number) => request<SimulationRun>(`/scenarios/runs/${runId}/execute`, { method: "POST" }),
+  runExperiment: (scenarioId: number, numRuns: number, simulationDays: number) => request<SimulationRun[]>(`/scenarios/${scenarioId}/run-experiment?num_runs=${numRuns}&simulation_days=${simulationDays}`, { method: "POST" }),
+   getExperimentResults: (scenarioId: number) => request<ExperimentResult>(`/scenarios/${scenarioId}/experiment`),
+   getSimulationRun: (runId: number) => request<SimulationRun>(`/scenarios/runs/${runId}`),
 };
