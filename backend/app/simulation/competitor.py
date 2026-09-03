@@ -77,7 +77,7 @@ def evolve_competitors(ctx) -> list[Event]:
                 comp.price = max(10.0, comp.price * 0.95)
                 if old_price - comp.price > 1.0:
                     events.append(Event(
-                        company_id=0,  # global event marker
+                        company_id=ctx.company.id,
                         event_type="COMPETITOR_ACTION",
                         description=f"Competitor '{comp.name}' dropped price from {old_price:.0f} to {comp.price:.0f}.",
                         target_type="competitor",

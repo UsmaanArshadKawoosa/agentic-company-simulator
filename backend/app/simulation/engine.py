@@ -571,11 +571,15 @@ def _build_llm_from_config() -> LLMService:
         return NoOpLLMService()
     if provider == "mock":
         return MockLLMService()
-    if provider in ("anthropic", "openai"):
+    if provider in ("anthropic", "openai", "gemini", "ollama"):
         return RealLLMService(
             provider=provider,
             model=settings.LLM_MODEL or None,
             api_key=settings.LLM_API_KEY or None,
+            base_url=settings.OLLAMA_BASE_URL or None,
             max_tokens=settings.LLM_MAX_TOKENS,
+            temperature=settings.LLM_TEMPERATURE,
+            timeout=settings.LLM_TIMEOUT,
+            max_retries=settings.LLM_MAX_RETRIES,
         )
     return NoOpLLMService()

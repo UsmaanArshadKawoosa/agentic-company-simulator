@@ -7,11 +7,14 @@ each agent's decision and resulting company state.
 Usage:
     LLM_PROVIDER=anthropic LLM_API_KEY=sk-... python scripts/run_real_llm_demo.py
     LLM_PROVIDER=openai LLM_API_KEY=sk-... python scripts/run_real_llm_demo.py
+    LLM_PROVIDER=gemini LLM_API_KEY= sk-... python scripts/run_real_llm_demo.py
+    LLM_PROVIDER=ollama LLM_MODEL=gemma2 python scripts/run_real_llm_demo.py
 
 Environment variables:
-    LLM_PROVIDER   - "anthropic" or "openai"
+    LLM_PROVIDER   - "anthropic", "openai", "gemini", or "ollama"
     LLM_MODEL      - model id (optional)
-    LLM_API_KEY    - provider API key
+    LLM_API_KEY    - provider API key (required for anthropic/openai/gemini,
+                    not required for ollama)
     LLM_MAX_TOKENS - max tokens (optional, default 1024)
     LLM_TEMPERATURE - sampling temperature (optional, default 0.0)
     LLM_TIMEOUT    - timeout in seconds (optional, default 30)
@@ -106,11 +109,12 @@ def main():
     # Validate configuration.
     provider = os.getenv("LLM_PROVIDER", "")
     api_key = os.getenv("LLM_API_KEY", "")
+    keyed_providers = ("anthropic", "openai", "gemini")
 
-    if not provider or provider not in ("anthropic", "openai"):
-        print("ERROR: Set LLM_PROVIDER=anthropic or LLM_PROVIDER=openai")
+    if not provider or provider not in (keyed_providers + ("ollama",)):
+        print(f"ERROR: Set LLM_PROVIDER to one of: {', '.join(['noop'] + list(keyed_providers) + ['ollama'])}")
         sys.exit(1)
-    if not api_key:
+    if provider in keyed_providers and not api_key:
         print("ERROR: Set LLM_API_KEY environment variable")
         sys.exit(1)
 

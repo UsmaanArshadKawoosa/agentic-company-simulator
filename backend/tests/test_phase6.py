@@ -18,6 +18,7 @@ from app.enums import (
     CompanyStatus,
     CompetitorStrategy,
     EnvironmentEventType,
+    EventType,
     SalesStage,
     SegmentType,
     TaskStatus,
@@ -26,6 +27,7 @@ from app.models.agent import Agent
 from app.models.campaign import Campaign
 from app.models.company import Company
 from app.models.competitor import Competitor
+from app.models.event import Event
 from app.models.market_segment import MarketSegment
 from app.models.sales_opportunity import SalesOpportunity
 from app.models.task import Task
@@ -146,6 +148,96 @@ class TestCompetitors:
         # STARTUP has no direct competitor.
         startup_pressure = competitor_system.compute_competitive_pressure(ctx, SegmentType.STARTUP)
         assert smb_pressure >= startup_pressure
+
+
+# ---------------------------------------------------------------------------
+# Competitor Event Company-Isolation Tests (regression for company_id=0 FK bug)
+# ---------------------------------------------------------------------------
+
+
+class TestCompetitorEventCompanyId:
+    """Competitor events must reference the owning simulation company.
+
+    Regression: competitor actions previously persisted with company_id=0
+    (a "global event marker" sentinel), violating the events.company_id
+    foreign key to companies.id during db.commit().
+    """
+
+    @staticmethod
+    def _force_price_drop(ctx) -> list[Event]:
+        """Force BudgetSoft (LOW_COST) to drop price by pinning rng.random()."""
+        orig = ctx.rng.random
+        ctx.rng.random = lambda: 0.0
+        try:
+            return competitor_system.evolve_competitors(ctx)
+        finally:
+            ctx.rng.random = orig
+
+    def test_competitor_event_uses_company_id(self, db: Session):
+        company = _create_company(db)
+        competitor_system.ensure_competitors(db)
+        ctx = _ctx(company, db, 1)
+        events = self._force_price_drop(ctx)
+
+        comp_events = [e for e in events if e.event_type == EventType.COMPETITOR_ACTION]
+        assert len(comp_events) == 1
+        ev = comp_events[0]
+        assert ev.company_id == company.id
+        assert ev.company_id != 0
+        # Persisting must not violate the companies FK (the original bug).
+        db.add_all(events)
+        db.flush()
+        db.commit()
+
+    def test_competitor_events_never_zero_company_id(self, db: Session):
+        company = _create_company(db, name="ZeroCo", seed=4242)
+        competitor_system.ensure_competitors(db)
+        ctx = _ctx(company, db, 1)
+        events = self._force_price_drop(ctx)
+        assert events
+        assert all(e.company_id != 0 for e in events)
+        assert all(e.company_id == company.id for e in events)
+
+    def test_tick_persists_competitor_event_with_company_id(self, db: Session, monkeypatch):
+        """End-to-end: a competitor action during tick() commits with the
+        simulation company's id and does not raise an FK violation."""
+        company = _create_company(db)
+        competitor_system.ensure_competitors(db)
+        real_evolve = competitor_system.evolve_competitors
+
+        def forced(ctx) -> list[Event]:
+            orig = ctx.rng.random
+            ctx.rng.random = lambda: 0.0
+            try:
+                return real_evolve(ctx)
+            finally:
+                ctx.rng.random = orig
+
+        monkeypatch.setattr(competitor_system, "evolve_competitors", forced)
+        engine = SimulationEngine(llm=MockLLMService())
+        state = engine.tick(db, company.id)
+        assert state.current_day == 2
+
+        comp_events = db.execute(
+            select(Event).where(Event.event_type == EventType.COMPETITOR_ACTION)
+        ).scalars().all()
+        assert comp_events
+        assert all(e.company_id == company.id for e in comp_events)
+        assert all(e.company_id != 0 for e in comp_events)
+
+    def test_competitor_event_company_isolation(self, db: Session):
+        """Events for one company never reference another company's id."""
+        a = _create_company(db, name="Alpha", seed=111)
+        b = _create_company(db, name="Beta", seed=222)
+        competitor_system.ensure_competitors(db)
+
+        ctx_a = _ctx(a, db, 1)
+        events = self._force_price_drop(ctx_a)
+        comp_events = [e for e in events if e.event_type == EventType.COMPETITOR_ACTION]
+        assert comp_events
+        assert all(e.company_id == a.id for e in comp_events)
+        assert all(e.company_id != b.id for e in comp_events)
+        assert all(e.company_id != 0 for e in comp_events)
 
 
 # ---------------------------------------------------------------------------

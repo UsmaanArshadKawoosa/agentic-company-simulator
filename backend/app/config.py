@@ -57,13 +57,16 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # --- LLM configuration (never hardcoded) ---
-    LLM_PROVIDER: str = "noop"  # noop | mock | anthropic | openai
+    LLM_PROVIDER: str = "noop"  # noop | mock | anthropic | openai | gemini | ollama
     LLM_MODEL: str = ""
     LLM_API_KEY: str = ""
     LLM_MAX_TOKENS: int = 1024
     LLM_TEMPERATURE: float = 0.0
     LLM_TIMEOUT: int = 30  # seconds
     LLM_MAX_RETRIES: int = 2
+    # Base URL for a locally running Ollama server (used only when
+    # LLM_PROVIDER=ollama). Never points at a production/remote host.
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

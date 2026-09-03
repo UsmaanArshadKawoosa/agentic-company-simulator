@@ -139,23 +139,32 @@ class MockLLMService(LLMService):
 class RealLLMService(LLMService):
     """Provider-backed LLM service.
 
-    Supports Anthropic and OpenAI. Configuration comes from environment
-    variables only; credentials are never hardcoded.
+    Supports Anthropic, OpenAI, Gemini, and Ollama. Configuration comes from
+    environment variables only; credentials are never hardcoded.
 
     Environment variables:
-        LLM_PROVIDER   - "anthropic" or "openai"
+        LLM_PROVIDER   - "anthropic" | "openai" | "gemini" | "ollama"
         LLM_MODEL      - model id
-        LLM_API_KEY    - provider API key
+        LLM_API_KEY    - provider API key (required for anthropic/openai/gemini,
+                         not required for ollama)
         LLM_MAX_TOKENS - max tokens for the response (optional)
         LLM_TEMPERATURE - sampling temperature (optional, default 0.0)
         LLM_TIMEOUT    - timeout in seconds (optional, default 30)
+        OLLAMA_BASE_URL - base URL for the local Ollama server (optional,
+                          default http://localhost:11434)
     """
+
+    # Providers that authenticate with an API key.
+    _KEYED_PROVIDERS = frozenset({"anthropic", "openai", "gemini"})
+    # All supported real providers.
+    _SUPPORTED_PROVIDERS = frozenset({"anthropic", "openai", "gemini", "ollama"})
 
     def __init__(
         self,
         provider: str | None = None,
         model: str | None = None,
         api_key: str | None = None,
+        base_url: str | None = None,
         max_tokens: int = 1024,
         temperature: float = 0.0,
         timeout: int = 30,
@@ -164,6 +173,7 @@ class RealLLMService(LLMService):
         self.provider = (provider or os.getenv("LLM_PROVIDER", "")).lower()
         self.model = model or os.getenv("LLM_MODEL", "")
         self.api_key = api_key or os.getenv("LLM_API_KEY", "")
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         self.max_tokens = max_tokens
         self.temperature = temperature if temperature is not None else float(os.getenv("LLM_TEMPERATURE", "0.0"))
         self.timeout = timeout
@@ -171,9 +181,9 @@ class RealLLMService(LLMService):
 
         if not self.provider:
             raise ValueError("LLM_PROVIDER is required for RealLLMService.")
-        if not self.api_key:
+        if self.provider in self._KEYED_PROVIDERS and not self.api_key:
             raise ValueError("LLM_API_KEY is required for RealLLMService.")
-        if self.provider not in ("anthropic", "openai"):
+        if self.provider not in self._SUPPORTED_PROVIDERS:
             raise ValueError(f"Unsupported LLM_PROVIDER: {self.provider}")
 
     def generate(self, prompt: str, **kwargs: Any) -> str:
@@ -196,7 +206,11 @@ class RealLLMService(LLMService):
             try:
                 if self.provider == "anthropic":
                     return self._anthropic_generate(prompt, **kwargs)
-                return self._openai_generate(prompt, **kwargs)
+                if self.provider == "openai":
+                    return self._openai_generate(prompt, **kwargs)
+                if self.provider == "gemini":
+                    return self._gemini_generate(prompt, **kwargs)
+                return self._ollama_generate(prompt, **kwargs)
             except LLMTimeoutError:
                 raise  # Don't retry timeouts.
             except LLMRateLimitError:
@@ -261,6 +275,85 @@ class RealLLMService(LLMService):
             raise LLMProviderError(f"OpenAI API error: {exc}") from exc
 
         return response.choices[0].message.content or ""
+
+    # --- Gemini ---
+
+    def _gemini_generate(self, prompt: str, **kwargs: Any) -> str:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=self.api_key)
+        model = self.model or kwargs.get("model") or "gemini-2.5-flash"
+        max_tokens = kwargs.get("max_tokens", self.max_tokens)
+
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=self.temperature,
+                ),
+            )
+        except Exception as exc:
+            # Never surface the API key in error messages.
+            msg = self._scrub_key(str(exc))
+            low = msg.lower()
+            if "timeout" in low or "timed out" in low:
+                raise LLMTimeoutError(f"Gemini timeout: {msg}") from exc
+            if "rate limit" in low or "429" in low:
+                raise LLMRateLimitError(f"Gemini rate limit: {msg}") from exc
+            raise LLMProviderError(f"Gemini API error: {msg}") from exc
+
+        # google-genai returns the generated text on response.text.
+        return getattr(response, "text", "") or ""
+
+    def _scrub_key(self, message: str) -> str:
+        """Redact the API key from a message so it is never leaked."""
+        if self.api_key:
+            message = message.replace(self.api_key, "<redacted>")
+        return message
+
+    # --- Ollama ---
+
+    def _ollama_generate(self, prompt: str, **kwargs: Any) -> str:
+        import httpx
+
+        model = self.model or kwargs.get("model")
+        if not model:
+            raise LLMProviderError("LLM_MODEL is required for the ollama provider.")
+
+        max_tokens = kwargs.get("max_tokens", self.max_tokens)
+        endpoint = f"{self.base_url.rstrip('/')}/api/generate"
+
+        try:
+            client = httpx.Client(timeout=self.timeout)
+            response = client.post(
+                endpoint,
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "num_predict": max_tokens,
+                        "temperature": self.temperature,
+                    },
+                },
+            )
+            response.raise_for_status()
+        except httpx.ConnectError as exc:
+            raise LLMProviderError(
+                f"Could not connect to Ollama at {self.base_url}: {exc}"
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise LLMTimeoutError(f"Ollama timeout: {exc}") from exc
+        except httpx.HTTPStatusError as exc:
+            raise LLMProviderError(f"Ollama API error: {exc}") from exc
+        except Exception as exc:
+            raise LLMProviderError(f"Ollama request failed: {exc}") from exc
+
+        data = response.json()
+        return data.get("response", "") or ""
 
     # --- parsing ---
 
