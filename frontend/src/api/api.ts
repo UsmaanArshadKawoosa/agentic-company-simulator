@@ -1,6 +1,7 @@
 import { Agent, Company, SimEvent, SimulationState, Employee, JobOpening, Candidate, WorkforceSummary, Objective, Risk, Incident, ResourceAllocation, HistoryResponse, MarketData, CompetitorData, SalesOpportunity, TimelineEvent, TimelineResponse, Decision, DecisionsResponse, Scenario, ScenarioCreate, SimulationRun, ExperimentResult } from "../types/types";
+import { resolveApiBaseUrl } from "./base";
 
-const BASE = "/api";
+const BASE = resolveApiBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

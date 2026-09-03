@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resolveWebSocketUrl } from "../api/base";
 
 export type ConnectionState = "connecting" | "connected" | "disconnected" | "reconnecting";
 
@@ -31,8 +32,7 @@ export function useWebSocket(companyId: number | null) {
 
     setConnectionState("connecting");
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/companies/${companyId}`;
+    const wsUrl = resolveWebSocketUrl(companyId);
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
