@@ -349,7 +349,3 @@ Thanks to the open-source LLM ecosystem and simulation / game theory / business 
 
 ---
 
-## Contact
-
-- **Issues:** [GitHub Issues](https://github.com/UsmaanArshadKawoosa/agentic-company-simulator/issues)
-- **Repository:** [GitHub](https://github.com/UsmaanArshadKawoosa/agentic-company-simulator)
