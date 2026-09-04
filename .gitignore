@@ -1,28 +1,23 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# OS
+.DS_Store
+Thumbs.db
 
-# Node
-node_modules/
-dist/
-*.local
-
-# Databases
-*.db
-*.sqlite
-*.sqlite3
+# Editors
+.vscode/
+.idea/
 
 # Environment
 .env
 .env.local
 
-# Editors / OS
-.vscode/
-.idea/
-.DS_Store
+# Python (kept for test running, minimal)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+pytest_cache/
+
+# Build
+node_modules/
+dist/
+*.local

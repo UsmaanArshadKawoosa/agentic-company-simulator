@@ -1,634 +1,191 @@
-# Agent Company Simulator
+# Agentic Company Simulator
 
-An AI-powered company simulation platform where autonomous AI agents operate inside a simulated company — complete with organizational hierarchy, goals, tasks, resources, decision-making, and an evolving market environment.
+A portable LLM skill that turns any capable language model into an **autonomous company simulation engine**. Simulate startups, SaaS companies, consumer brands, and more — no code, no servers, no databases.
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev)
+[![Skill](https://img.shields.io/badge/Skill-portable-blue)](SKILL.md)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Overview
+---
 
-Agent Company Simulator is a full-stack application that models a company as a multi-agent system. Each company is staffed with AI agents — a CEO, CTO, CMO, and Engineer — who observe their environment, make decisions, execute actions, and learn from outcomes. The simulation advances through discrete time steps ("days"), during which market conditions evolve, customers are acquired and churn, products are developed, and the financial state of the company changes in response to agent actions.
+## What Is It?
 
-The project is designed as a platform for exploring autonomous agent behavior in a business context. Researchers, developers, and strategists can use it to test decision-making frameworks, observe emergent organizational dynamics, or prototype AI-driven management systems. The deterministic simulation engine ensures reproducible runs, while the pluggable LLM abstraction allows swapping between placeholder logic and real language model providers (Anthropic, OpenAI).
+Agentic Company Simulator is a single downloadable `SKILL.md` file that you provide to your LLM. Once loaded, the LLM becomes a company operating system — capable of:
 
-The backend is built on FastAPI with SQLAlchemy ORM, exposing a comprehensive REST API and WebSocket endpoint for real-time updates. The frontend is a React + TypeScript application with Tailwind CSS, providing a command-center dashboard to monitor and control simulations. The entire system is containerized with Docker and includes a comprehensive test suite with 364 tests.
+- **Initializing a company** from a natural-language description
+- **Simulating autonomous agents** (Founder, CEO, CTO, CMO, Engineer, Salesperson)
+- **Running the simulation loop** day by day with realistic decisions
+- **Tracking finances, product, market, and workforce** in structured state
+- **Responding to competitor actions and market events**
+- **Simulating success or failure** based on real causal chains
 
-## Key Features
+No Python. No Node.js. No Docker. No PostgreSQL. No API keys.
 
-### Autonomous Agent Lifecycle
-Each agent follows a complete observe → think → decide → act → reflect cycle. Agents perceive their environment through structured context, formulate decisions via LLM (or deterministic fallback), execute validated actions against company state, and persist memories for future reference.
+Just your LLM + this skill.
 
-### Hierarchical Organization
-Companies are seeded with a realistic org chart: CEO → CTO → Engineer, and CEO → CMO. Each agent has defined authority levels, budgets, salaries, personality traits, and skill sets that influence their decision-making.
+---
 
-### Deterministic Simulation Engine
-The simulation advances day-by-day with fully deterministic behavior given the same seed. Market evolution, customer acquisition/churn, financial calculations, and agent decisions all derive from a seeded RNG, enabling reproducible experiments.
+## Quick Start
 
-### Real-Time WebSocket Updates
-A WebSocket endpoint streams simulation events to connected clients in real-time — including agent decisions, market changes, risk detections, and financial summaries — enabling live dashboards without polling.
+```text
+1. Download SKILL.md
+2. Give it to your LLM (Claude, GPT-4, Gemini, etc.)
+3. Describe your company
+4. Start simulation
+```
 
-### Comprehensive Domain Model
-The system models 34 database entities including companies, agents, goals, projects, tasks, events, decisions, memories, customers, competitors, campaigns, sales opportunities, employees, funding rounds, investors, risks, incidents, and objectives.
+### Example
 
-### Financial Intelligence
-Full financial modeling with revenue, expenses, cash flow, runway calculations, burn rate tracking, valuation estimation, fundraising pipeline management, cap table tracking, and budget request workflows.
+```
+Create a startup called NovaFlow AI.
+Mission: Build an AI productivity platform.
+Starting capital: $250,000
+Team: 1 founder, 2 engineers
+Objective: Launch within 60 days and reach 1,000 paying users
+Market: Competitive AI productivity market
+```
 
-### Market Simulation
-Dynamic market segments (SMB, Mid-Market, Enterprise, Startup) with evolving demand, competition, and sentiment. Competitor agents with distinct strategies (Low-Cost, Premium, Growth, Enterprise) compete for market share.
+Then:
 
-### Risk & Incident Management
-Automatic risk detection based on company state (low cash runway, quality crises, customer churn spikes), with escalation paths and incident resolution workflows.
+```
+Simulate the next 7 days.
+```
 
-### Workforce Management
-Employee lifecycle from candidate generation through hiring, onboarding, performance evaluation, and termination. Morale, productivity, and capacity tracking by role.
+The LLM outputs a concise daily report showing company health, agent decisions, consequences, risks, and next priorities.
 
-### LLM Provider Abstraction
-Pluggable LLM service interface with implementations for NoOp (deterministic placeholders), Mock (scripted test behavior), and Real (Anthropic/OpenAI with retry logic and JSON parsing).
+See [`examples/prompts/nova-flow-ai.md`](examples/prompts/nova-flow-ai.md) for a ready-to-use prompt.
+
+---
 
 ## How It Works
 
 ```
-User creates company via Frontend
-         ↓
-Frontend calls POST /api/companies
-         ↓
-Backend seeds organization (CEO, CTO, CMO, Engineer)
-         ↓
-User starts simulation
-         ↓
-SimulationEngine.tick() advances day:
-    1. Market evolution (demand, competition, sentiment)
-    2. Environmental events (market boom/downturn, competitor actions)
-    3. Task execution (engineer capacity consumed)
-    4. Product progress (features, milestones, quality)
-    5. Customer acquisition/churn
-    6. Financial processing (revenue, expenses, cash)
-    7. Risk detection and incident creation
-    8. Agent cycles (observe/think/decide/act/reflect)
-    9. Goal evaluation
-    10. Company success/failure assessment
-         ↓
-Events broadcast via WebSocket
-         ↓
-Frontend updates dashboard in real-time
+SKILL.md                  ← You download this
+   ↓
+Your LLM                 ← Claude, GPT-4, Gemini, etc.
+   ↓
+Company State (YAML)     ← Maintained in conversation
+   ↓
+Agents (roles)           ← Founder, CEO, CTO, CMO, Engineer, ...
+   ↓
+Decisions              ← Structured: observe → evaluate → choose → resolve
+   ↓
+Consequences           ← Applied to state with causal chains
+   ↓
+Evolving Company       ← Finance, product, market, workforce change over time
 ```
 
-### Simulation Tick Detail
+Each simulation step follows a 15-phase loop: market evolution → agent decisions → work execution → financial processing → risk detection → goal evaluation → outcome assessment.
 
-Each tick represents one simulated day. The engine processes systems in a fixed order to ensure determinism:
+---
 
-1. **Market System** — evolves demand, competition, sentiment using seeded RNG
-2. **Segment System** — updates market segment dynamics
-3. **Competitor System** — evolves competitor strategies and market positions
-4. **Environmental Events** — generates random events (market boom, competitor launch, etc.)
-5. **Task Blocking** — updates task dependency state
-6. **Workforce** — updates onboarding, morale, productivity, performance
-7. **Work Execution** — engineers complete assigned tasks
-8. **Milestones & Projects** — updates progress, calculates product readiness
-9. **Product** — updates features, quality, technical debt
-10. **Marketing** — processes campaign spend and completion
-11. **Sales** — advances opportunities through pipeline stages
-12. **Market Share** — recalculates based on competitive position
-13. **Customers** — acquisition and churn based on product quality/marketing
-14. **Economy** — processes revenue, expenses, updates cash
-15. **Financial Health** — calculates runway, burn rate, financial health score
-16. **Fundraising** — updates investor pipeline
-17. **Risk Detection** — identifies new risks from company state
-18. **Incident Detection** — creates incidents from critical risks
-19. **Expectations** — evaluates previous decision expectations
-20. **Plans** — advances active plans based on step completion
-21. **Objectives** — updates objective progress
-22. **Attention** — computes management attention metrics
-23. **Decision Quality** — evaluates pending decisions
-24. **Agent Cycles** — each agent runs observe/think/decide/act/reflect
-25. **Goals** — evaluates goal progress
-26. **Outcomes** — assesses company success/failure conditions
+## Interaction Modes
 
-## Architecture
+| Mode | How to use | What it does |
+|------|-----------|--------------|
+| **Autonomous** | `Simulate the next 7 days.` | LLM runs the company independently |
+| **Founder** | `What should I do today?` | LLM presents options; you choose |
+| **Advisory** | `Should we raise funding?` | LLM analyzes state and advises |
+| **Scenario** | `What if we double marketing?` | LLM simulates counterfactuals |
+| **Comparison** | `Compare hiring vs outsourcing.` | LLM evaluates both paths |
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (React)                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │ CommandCenter│  │ CreateCompany│  │    Simulation Page     │  │
-│  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘  │
-│         │                │                      │                │
-│  ┌──────┴────────────────┴──────────────────────┴─────────────┐  │
-│  │                    Custom Hooks                             │  │
-│  │  ┌──────────────────┐  ┌────────────────────────────────┐  │  │
-│  │  │ useSimulation()  │  │      useWebSocket()            │  │  │
-│  │  └──────────────────┘  └────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                              │                                   │
-│  ┌───────────────────────────┴────────────────────────────────┐  │
-│  │                      API Client                             │  │
-│  └───────────────────────────┬────────────────────────────────┘  │
-└──────────────────────────────┼───────────────────────────────────┘
-                               │ HTTP / WebSocket
-┌──────────────────────────────┼───────────────────────────────────┐
-│                        Backend (FastAPI)                         │
-│  ┌───────────────────────────┴────────────────────────────────┐  │
-│  │                      API Routers                            │  │
-│  │  ┌──────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐  │  │
-│  │  │companies │ │ simulation │ │operations │ │ workforce │  │  │
-│  │  └──────────┘ └────────────┘ └───────────┘ └───────────┘  │  │
-│  │  ┌──────────────────────────────────────────────────────┐  │  │
-│  │  │                   websocket                          │  │  │
-│  │  └──────────────────────────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                              │                                   │
-│  ┌───────────────────────────┴────────────────────────────────┐  │
-│  │                   Core Services                             │  │
-│  │  ┌──────────────────┐  ┌────────────────────────────────┐  │  │
-│  │  │ SimulationEngine │  │     LLMService (Abstract)      │  │  │
-│  │  └──────────────────┘  └────────────────────────────────┘  │  │
-│  │  ┌──────────────────┐  ┌────────────────────────────────┐  │  │
-│  │  │  Agent Base      │  │     DecisionValidator          │  │  │
-│  │  └──────────────────┘  └────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                              │                                   │
-│  ┌───────────────────────────┴────────────────────────────────┐  │
-│  │              Simulation Systems (40+ modules)               │  │
-│  │  economy  market  customers  product  sales  marketing     │  │
-│  │  workforce  strategy  pricing  competitors  risks          │  │
-│  │  incidents  objectives  resources  priority  attention     │  │
-│  │  financial_health  fundraising  capital  valuation         │  │
-│  │  plans  expectations  communication  memory  adaptation    │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                              │                                   │
-│  ┌───────────────────────────┴────────────────────────────────┐  │
-│  │                   Data Layer                                │  │
-│  │  ┌──────────────────┐  ┌────────────────────────────────┐  │  │
-│  │  │   SQLAlchemy     │  │       Pydantic Schemas         │  │  │
-│  │  │   ORM Models     │  │       (Validation)             │  │  │
-│  │  └──────────────────┘  └────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┼───────────────────────────────────┘
-                               │
-┌──────────────────────────────┼───────────────────────────────────┐
-│                        Database                                  │
-│  ┌───────────────────────────┴────────────────────────────────┐  │
-│  │              PostgreSQL (production)                        │  │
-│  │              SQLite (development/testing)                   │  │
-│  └────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+---
+
+## State & Persistence
+
+The LLM maintains company state as YAML in the conversation. At any point you can:
+
+```text
+Save state.
 ```
 
-### Backend Structure
+The LLM outputs a state block. Copy it, then later:
 
-| Module | Purpose |
-|--------|---------|
-| `app/api/` | REST routers for companies, agents, simulation, operations, workforce, WebSocket |
-| `app/agents/` | Agent abstraction, role implementations (CEO/CTO/CMO/Engineer), context building, decision validation |
-| `app/simulation/` | 40+ simulation systems handling economy, market, customers, product, sales, etc. |
-| `app/services/` | LLM service abstraction, decision service, memory service, real-time broadcaster |
-| `app/models/` | 34 SQLAlchemy ORM models with relationships |
-| `app/schemas/` | Pydantic v2 schemas for request/response validation |
-| `app/db/` | Database engine, session management, base model |
-| `app/enums/` | 50+ domain enums for type safety |
+```text
+Continue from this state:
+<state block>
+```
 
-### Frontend Structure
+The LLM resumes the simulation from the saved point.
 
-| Module | Purpose |
-|--------|---------|
-| `src/pages/` | CompanyList (browse), CreateCompany, Simulation, CommandCenter (dashboard) |
-| `src/components/` | AgentCard, CompanyDashboard, Metrics, OrgChart, ActivityFeed, OperationsPanel |
-| `src/hooks/` | useSimulation (API polling), useWebSocket (real-time updates) |
-| `src/api/` | Typed API client for all backend endpoints |
-| `src/types/` | TypeScript type definitions matching backend schemas |
+---
 
-## Tech Stack
+## Repository Structure
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| Frontend | React 18 + TypeScript | UI framework with type safety |
-| Frontend | Vite 5 | Build tool and dev server |
-| Frontend | Tailwind CSS 3 | Utility-first styling |
-| Backend | FastAPI 0.110+ | Async Python web framework |
-| Backend | SQLAlchemy 2.0+ | ORM with async support |
-| Backend | Pydantic 2.5+ | Data validation and serialization |
-| Backend | Uvicorn | ASGI server |
-| Database | PostgreSQL 16 | Production database |
-| Database | SQLite | Development and testing |
-| AI/ML | Anthropic Claude | LLM provider (optional) |
-| AI/ML | OpenAI GPT | LLM provider (optional) |
-| Testing | pytest 8.0+ | Backend test suite |
-| Testing | httpx | Async HTTP client for testing |
-| Infrastructure | Docker | Containerization |
-| Infrastructure | docker-compose | Multi-service orchestration |
+```text
+agentic-company-simulator/
+├── SKILL.md                          ← THE PRODUCT (download this)
+├── skills/company-simulation/        ← Modular reference for maintainers
+│   ├── SKILL.md                      ← Modular entry point
+│   ├── core/                         ← Simulation loop, state, decisions
+│   ├── roles/                        ← Agent role definitions
+│   ├── systems/                      ← Finance, product, market, etc.
+│   ├── schemas/                      ← State schemas
+│   └── examples/                     ← Example company definitions
+├── examples/
+│   ├── prompts/                      ← Ready-to-use prompts
+│   └── simulations/                  ← Worked simulation examples
+│       ├── nova-flow-ai.md           ← 10-day startup simulation
+│       └── secureflow-saas.md        ← 30-day SaaS simulation
+├── docs/
+│   ├── usage.md                      ← User guide
+│   ├── architecture.md               ← Design principles
+│   └── skill-development.md          ← Maintainer guide
+├── tests/
+│   └── test_skill.py                 ← Skill validation
+└── README.md
+```
 
-## Getting Started
+---
 
-### Prerequisites
+## Full Example: NovaFlow AI (10-Day Simulation)
 
-- **Python 3.11+** — required for modern type hints and performance
-- **Node.js 18+** (20+ recommended) — frontend runtime
-- **PostgreSQL 16** — optional; SQLite works without it
-- **Docker** — optional; for running PostgreSQL container
+See [`examples/simulations/nova-flow-ai.md`](examples/simulations/nova-flow-ai.md) for a complete 10-day worked simulation showing:
 
-### Installation
+- Agent decisions with rationale
+- Product development (idea → beta → launch-ready features)
+- Competitor response (SwiftTask AI launch)
+- Customer acquisition (waitlist → beta → paying users)
+- Financial tracking (cash burn, runway, first revenue)
+- Risk detection and mitigation
+- State compression and continuation
+
+---
+
+## What the Skill Simulates
+
+| Domain | What's tracked |
+|--------|---------------|
+| **Founders & Executives** | CEO, CTO, CMO authority, decisions, priorities |
+| **Engineering** | Capacity, tasks, features, technical debt, bugs |
+| **Marketing** | Campaigns, brand strength, acquisition funnel |
+| **Sales** | Pipeline, conversion, CAC, LTV |
+| **Finance** | Cash, burn, runway, revenue, valuation |
+| **Product** | Stages, progress, quality, readiness |
+| **Workforce** | Hiring, onboarding, morale, turnover |
+| **Market** | Demand, competition, sentiment, segments |
+| **Competition** | Competitor actions, market share |
+| **Fundraising** | Investor pipeline, valuation, dilution |
+| **Risk & Incidents** | Detection, escalation, resolution |
+| **Events** | Contextual, consequential market events |
+
+---
+
+## Validation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd agent-company-simulator
+python tests/test_skill.py
 ```
 
-#### Backend Setup
-
-```bash
-cd backend
-
-# Create and activate virtual environment
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1      # Windows (PowerShell)
-# source .venv/bin/activate       # macOS / Linux
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-```
-
-Edit `.env` to configure your database:
-
-```env
-# For PostgreSQL (recommended for production)
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/agent_company
-
-# For SQLite (zero-config development)
-DATABASE_URL=sqlite:///./agent_company.db
-```
-
-#### Frontend Setup
-
-```bash
-cd frontend
-npm install
-```
-
-### Running the Application
-
-#### Start PostgreSQL (if using)
-
-```bash
-# From the project root
-docker compose up -d
-```
-
-Tables are created automatically on backend startup.
-
-#### Start the Backend
-
-```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
-```
-
-- API base: `http://localhost:8000/api`
-- Interactive docs: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/health`
-
-#### Start the Frontend
-
-```bash
-cd frontend
-npm run dev
-```
-
-The dev server runs on `http://localhost:5173` and proxies `/api` to the backend.
-
-### Running Tests
-
-```bash
-cd backend
-pytest
-```
-
-The test suite runs against SQLite by default — no PostgreSQL required. It covers:
-- Company creation and organization seeding
-- Agent hierarchy and lifecycle
-- Simulation engine (start/pause/tick/resume)
-- All simulation systems (economy, market, customers, product, etc.)
-- API endpoints and WebSocket
-- Database relationships and constraints
-- Determinism verification
-
-## API Reference
-
-### Companies
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/companies` | Create a company (+ seed 4 agents) |
-| GET | `/api/companies` | List all companies |
-| GET | `/api/companies/{company_id}` | Get company details |
-| GET | `/api/companies/{company_id}/agents` | List company agents |
-| GET | `/api/companies/{company_id}/events` | List company events |
-| GET | `/api/companies/{company_id}/customers` | List company customers |
-| GET | `/api/companies/{company_id}/metrics` | Get financial/market/product metrics |
-
-### Simulation
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/simulation/{company_id}/start` | Start simulation |
-| POST | `/api/simulation/{company_id}/pause` | Pause simulation |
-| POST | `/api/simulation/{company_id}/tick` | Advance one day |
-| POST | `/api/simulation/{company_id}/resume` | Resume continuous simulation |
-| POST | `/api/simulation/{company_id}/speed` | Set simulation speed |
-| GET | `/api/simulation/{company_id}` | Get current state |
-| GET | `/api/simulation/{company_id}/dashboard` | Get comprehensive dashboard |
-| GET | `/api/simulation/{company_id}/timeline` | Get event timeline |
-| GET | `/api/simulation/{company_id}/plans` | List plans |
-| GET | `/api/simulation/{company_id}/messages` | List messages |
-| GET | `/api/simulation/{company_id}/expectations` | List expectations |
-| GET | `/api/simulation/{company_id}/agent-metrics` | Get agent performance |
-| GET | `/api/simulation/{company_id}/market` | Get market segments |
-| GET | `/api/simulation/{company_id}/competitors` | Get competitors |
-| GET | `/api/simulation/{company_id}/strategy` | Get strategy state |
-| GET | `/api/simulation/{company_id}/campaigns` | Get campaigns |
-| GET | `/api/simulation/{company_id}/sales` | Get sales pipeline |
-| GET | `/api/simulation/{company_id}/financials` | Get financial metrics |
-| GET | `/api/simulation/{company_id}/valuation` | Get company valuation |
-| GET | `/api/simulation/{company_id}/investors` | Get investors |
-| GET | `/api/simulation/{company_id}/funding-rounds` | Get funding rounds |
-| GET | `/api/simulation/{company_id}/pipeline` | Get fundraising pipeline |
-| GET | `/api/simulation/{company_id}/cap-table` | Get cap table |
-| GET | `/api/simulation/{company_id}/budget-requests` | Get budget requests |
-
-### Operations (Phase 11)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/operations/companies/{company_id}/objectives` | List objectives |
-| POST | `/api/operations/companies/{company_id}/objectives` | Create objective |
-| PATCH | `/api/operations/companies/{company_id}/objectives/{id}` | Update objective |
-| GET | `/api/operations/companies/{company_id}/risks` | List risks |
-| POST | `/api/operations/companies/{company_id}/risks` | Create risk |
-| PATCH | `/api/operations/companies/{company_id}/risks/{id}` | Update risk |
-| GET | `/api/operations/companies/{company_id}/incidents` | List incidents |
-| POST | `/api/operations/companies/{company_id}/incidents` | Create incident |
-| PATCH | `/api/operations/companies/{company_id}/incidents/{id}` | Update incident |
-| GET | `/api/operations/companies/{company_id}/resources` | List resource allocations |
-| POST | `/api/operations/companies/{company_id}/resources` | Allocate resource |
-
-### Workforce (Phase 9)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/workforce/companies/{company_id}/employees` | List employees |
-| POST | `/api/workforce/companies/{company_id}/employees` | Hire employee |
-| GET | `/api/workforce/companies/{company_id}/jobs` | List job openings |
-| POST | `/api/workforce/companies/{company_id}/jobs` | Create job opening |
-| GET | `/api/workforce/companies/{company_id}/candidates` | List candidates |
-| GET | `/api/workforce/companies/{company_id}/workforce` | Get workforce summary |
-
-### WebSocket
-
-Connect to `ws://localhost:8000/api/ws/companies/{company_id}` for real-time events:
-
-- `connection.established` — sent on connect
-- `simulation.started` / `simulation.paused` — simulation state changes
-- `simulation.tick` — day advanced with summary
-- `agent.decision` — agent action taken
-- `risk.detected` — new risk identified
-- `incident.created` — new incident
-- `objective.created` — new objective
-- `resource.allocated` — resource allocated
-- `priority.changed` — management attention update
-- `pong` — response to ping
-
-## Configuration
-
-All configuration is via environment variables (see `.env.example`):
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | PostgreSQL | Database connection string |
-| `LLM_PROVIDER` | `noop` | LLM provider: `noop`, `mock`, `anthropic`, `openai` |
-| `LLM_MODEL` | Provider default | Model identifier |
-| `LLM_API_KEY` | — | Provider API key |
-| `LLM_MAX_TOKENS` | 1024 | Max response tokens |
-| `LLM_TEMPERATURE` | 0.0 | Sampling temperature |
-| `LLM_TIMEOUT` | 30 | Request timeout (seconds) |
-| `LLM_MAX_RETRIES` | 2 | Max retry attempts for transient LLM failures |
-| `CORS_ORIGINS` | localhost:5173 | Allowed CORS origins (comma-separated) |
-| `LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `ENVIRONMENT` | `development` | Runtime environment |
-
-## Development Setup
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL 16 (optional; SQLite is used for tests)
-
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Run Tests
-
-```bash
-# Backend
-cd backend
-python -m pytest -q
-
-# Frontend
-cd frontend
-npx vitest run
-```
-
-### Production Build
-
-```bash
-cd frontend
-npm run build
-```
-
-## Health & Readiness
-
-The backend exposes two health endpoints:
-
-- `GET /health` — liveness probe. Returns `{"status": "ok", "service": "..."}`. Does not check dependencies.
-- `GET /ready` — readiness probe. Verifies database connectivity and returns `{"status": "ok", "database": "ok", ...}` or `{"status": "error", "database": "error", ...}`.
-
-Both endpoints include an `X-Request-ID` header for correlation.
-
-## Observability
-
-### Structured Logging
-
-The backend uses structured Python logging with request-scoped correlation IDs. Every log line includes a `request_id` when available. Simulation ticks log duration, event count, and decision count at INFO level. Phase-level timing is available at DEBUG level.
-
-### Request Tracing
-
-Each HTTP request receives a unique `X-Request-ID`. If the client provides one via the `X-Request-ID` header, it is preserved; otherwise a new UUID is generated. The request ID is returned in the response header and included in all log lines for that request.
-
-### Simulation Timing
-
-The simulation engine instruments each tick with phase-level timing:
-- `market` — market evolution, segments, competitors, environmental events
-- `workforce` — onboarding, morale, productivity, performance, work execution
-- `product` — milestones, projects, features, product readiness
-- `marketing_sales` — campaigns, sales pipeline, market share
-- `customers` — acquisition and churn
-- `economy` — revenue, expenses, cash, financial health, fundraising
-- `operations` — risks, incidents, expectations, plans, objectives, attention
-- `agents` — agent observe/think/decide/act/reflect cycles
-- `outcomes` — goal evaluation, company success/failure
-
-Enable phase timing by setting `LOG_LEVEL=DEBUG`.
-
-## Performance Considerations
-
-### Database Indexes
-
-The following composite indexes are applied to frequently queried tables:
-- `events`: `(company_id, simulation_day)`
-- `decisions`: `(company_id, simulation_day)`
-- `tasks`: `(company_id, status)`
-- `employees`: `(company_id, status)`
-- `candidates`: `(company_id, status)`
-- `simulation_runs`: `(scenario_id, status)`
-
-### API Pagination
-
-All collection endpoints enforce bounded limits:
-- Default limit: 100
-- Maximum limit: 1000 (configurable per endpoint)
-- Summary endpoints (dashboard, workforce) use higher caps (10000)
-
-### Frontend Code Splitting
-
-Heavy routes (Analytics, Timeline, Experiment, Run Detail, Scenario Editor) are lazy-loaded via `React.lazy()` and `Suspense`, reducing initial bundle size.
-
-### Test Suite
-
-The backend test suite uses SQLite with per-test database resets for isolation. Tests exercise the full stack from API to database.
-
-## Security
-
-- **CORS**: Allowed origins are configured via `CORS_ORIGINS` environment variable. Never use wildcard origins in production.
-- **Secrets**: API keys and credentials are loaded exclusively from environment variables. No secrets are committed to the repository.
-- **Input Validation**: All API inputs are validated via Pydantic schemas. Enum values are constrained to defined sets.
-- **Error Responses**: Production responses do not expose stack traces or internal implementation details. Detailed errors are logged server-side only.
-
-## Known Limitations
-
-- **Default LLM is NoOp**: Without configuring a real LLM provider, agents take deterministic placeholder actions. Set `LLM_PROVIDER=anthropic` or `LLM_PROVIDER=openai` with a valid API key for autonomous behavior.
-- **Single-company focus**: The engine is optimized for simulating one company at a time. Multi-company scenarios require running separate instances.
-- **Simplified physics**: Market dynamics, customer behavior, and financial models are simplified abstractions — not intended for real business planning.
-- **No persistence of learned state**: Agent memories are stored in the database but sophisticated learning/retrieval is limited to importance-based filtering.
-- **Synchronous simulation tick**: The simulation tick runs synchronously in the request handler. Long simulations block the API for the duration of the tick. For very long runs, use the scenario runner which executes in a background thread.
-
-## Example Usage
-
-### Create and Run a Simulation
-
-```bash
-# Create a company
-curl -X POST http://localhost:8000/api/companies \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Acme Corp", "mission": "Build AI-powered tools"}'
-
-# Start the simulation
-curl -X POST http://localhost:8000/api/simulation/1/start
-
-# Advance one day
-curl -X POST http://localhost:8000/api/simulation/1/tick
-
-# Get current state
-curl http://localhost:8000/api/simulation/1
-
-# Get dashboard
-curl http://localhost:8000/api/simulation/1/dashboard
-```
-
-### WebSocket Client (JavaScript)
-
-```javascript
-const ws = new WebSocket('ws://localhost:8000/api/ws/companies/1');
-
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log('Received:', data.type, data);
-};
-
-ws.onopen = () => {
-  // Send ping
-  ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
-};
-```
-
-## Current Capabilities
-
-- **Phase 1**: Project foundation, database schema, basic API
-- **Phase 2**: Agent hierarchy, organization seeding, event system
-- **Phase 3**: Market simulation, customer acquisition/churn, financial processing
-- **Phase 4**: Task execution, milestones, product features, work capacity
-- **Phase 5**: Agent autonomy, plans, expectations, communication, memory, adaptation
-- **Phase 6**: Market segments, competitors, campaigns, sales pipeline, pricing, PMF
-- **Phase 7**: LLM integration, structured decisions, prompt engineering, observability
-- **Phase 8**: Dashboard, command center, real-time updates
-- **Phase 9**: Workforce management, hiring, performance, candidates
-- **Phase 10**: Financial intelligence, fundraising, investors, cap table, valuation
-- **Phase 11**: Objectives, resources, risks, incidents, priority, attention
-
-## User Interface
-
-The frontend provides a complete command center for managing simulations:
-
-- **Company List**: Browse and select existing companies, view status at a glance
-- **Create Company**: Form to create new companies with name and mission
-- **Command Center**: Real-time dashboard with:
-  - Company status, day counter, cash/revenue metrics
-  - Agent hierarchy visualization
-  - Live activity feed with event filtering
-  - Financial metrics, valuation, funding rounds
-  - Workforce summary with employees, candidates, open positions
-  - Operations panel for objectives, risks, and incidents
-  - Simulation controls (start/pause/tick/resume, speed selection)
-  - WebSocket connection indicator with auto-reconnect
-
-## Limitations
-
-- **Default LLM is NoOp**: Without configuring a real LLM provider, agents take deterministic placeholder actions. Set `LLM_PROVIDER=anthropic` or `LLM_PROVIDER=openai` with a valid API key for autonomous behavior.
-- **Single-company focus**: The engine is optimized for simulating one company at a time. Multi-company scenarios require running separate instances.
-- **Simplified physics**: Market dynamics, customer behavior, and financial models are simplified abstractions — not intended for real business planning.
-- **No persistence of learned state**: Agent memories are stored in the database but sophisticated learning/retrieval is limited to importance-based filtering.
-
-## Future Enhancements
-
-- **Enhanced LLM Integration**: Richer prompts, multi-turn reasoning, tool use
-- **Multi-Company Simulation**: Cross-company competition and market dynamics
-- **Advanced Learning**: Agent skill improvement, strategy adaptation over time
-- **Scenario Library**: Pre-built scenarios (startup growth, turnaround, market entry)
-- **Export/Import**: Save and share simulation configurations and results
-- **Analytics**: Post-simulation analysis, decision quality metrics, outcome attribution
-- **Custom Agent Roles**: User-defined roles with custom behaviors and authority
-- **Visualization**: Charts for financial trends, market share, org dynamics
+Tests verify:
+- `SKILL.md` exists and contains required sections
+- All referenced supporting files exist
+- No broken cross-references
+- State schema covers all required domains
+- All 7 agent roles are defined
+- All 9 systems are documented
+- Example simulations demonstrate key mechanics
+
+---
 
 ## License
 
